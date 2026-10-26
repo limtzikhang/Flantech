@@ -17,7 +17,7 @@ if "authenticated" not in st.session_state:
 if "user_email" not in st.session_state:
     st.session_state.user_email = None
 
-# 3. Security Router
+# 3. Security Router (Login / Sign Up Layout)
 if not st.session_state.authenticated:
     st.title("🔒 Flantech Asia Gate")
     st.subheader("Sign up or Log in to access the system and store")
@@ -49,7 +49,7 @@ if not st.session_state.authenticated:
 
 # 4. Main Logged-In System Dashboard
 else:
-    # --- CLEANED SIDEBAR PANE ---
+    # --- SIDEBAR PANE CONFIGURATION ---
     st.sidebar.title("🧬 Flantech Hub")
     st.sidebar.write(f"👤 Logged in as: **{st.session_state.user_email}**")
     
@@ -60,25 +60,43 @@ else:
         
     st.title("Welcome to Flantech Asia Platform")
     
-    # SYSTEM INTERFACE TABS
-    tab_store, tab_videos = st.tabs(["🛒 Buy Products (Maybank2u FPX)", "📹 Media & Analysis Library"])
+    # SYSTEM TABS (Includes your exact requested layout parameters)
+    tab_dash, tab_product, tab_videos = st.tabs(["🏠 Home Dashboard", "📦 Product", "📹 Video Library"])
     
-    # --- TAB A: THE PRODUCT CHECKOUT ENGINE ---
-    with tab_store:
-        st.subheader("Flantech Authorized E-Commerce Terminal")
-        st.write("Select a product to buy. Transactions route securely via regional FPX processing arrays.")
+    # --- TAB 1: HOME DASHBOARD ---
+    with tab_dash:
+        st.subheader("Overview")
+        st.write("Welcome back to Flantech Asia. Use the tabs above to explore products or watch analysis updates.")
+    
+    # --- TAB 2: THE PRODUCT TAB ENGINE (WITH YOUR REAL LOCAL IMAGES) ---
+    with tab_product:
+        st.subheader("Available Products Catalog")
+        st.write("Click on any product image or button below to proceed to payment validation loops.")
         st.divider()
         
+        # Split layout into 2 distinct columns for product cards
         p_col1, p_col2 = st.columns(2)
+        
+        # Define paths to your stored images
+        img_path_1 = os.path.join("product", "MegaH.jpg")
+        img_path_2 = os.path.join("product", "CrystalEnergy.jpg")
         
         with p_col1:
             st.markdown("### 💎 Product 1: MegaHydrate Premium Pack")
-            st.image("https://placehold.co", use_container_width=True)
-            st.write("**Description:** High-potency antioxidant dietary compound engine.")
+            
+            # Checks if your folder and picture exist before displaying to prevent crashes
+            if os.path.exists(img_path_1):
+                st.image(img_path_1, use_container_width=True)
+            else:
+                st.error(f"Image not found at path: {img_path_1}. Please verify your folder and file name.")
+                
+            st.write("**Description:** High-potency cellular hydration and antioxidant support compound formula.")
             st.write("## Price: RM 240.00")
             
             if st.button("Buy Product 1 via Maybank2u FPX", key="btn_prod_1", use_container_width=True):
                 st.warning("Connecting via API gateway to Maybank2u (FPX)...")
+                
+                # Dynamic structures mapped out for future LHDN e-Invoicing transmission
                 mock_lhdn_invoice = {
                     "document_type": "Invoice",
                     "buyer_email": st.session_state.user_email,
@@ -87,33 +105,41 @@ else:
                     "tax_rate": "0%",
                     "currency": "MYR"
                 }
+                
                 st.info("🔄 Creating verified tax audit tracking record...")
                 st.json(mock_lhdn_invoice)
                 st.success("Redirecting customer to secure online banking portal...")
-                st.markdown("[👉 Proceed to Maybank2u FPX Payment Simulation](https://maybank2u.com.my)")
+                st.markdown("[👉 Click Here to Proceed to Maybank2u FPX Payment Gate](https://maybank2u.com.my)")
                 
         with p_col2:
-            st.markdown("### 🧪 Product 2: Live Blood Analysis Kit")
-            st.image("https://placehold.co", use_container_width=True)
-            st.write("**Description:** Professional grade testing equipment for cellular analysis evaluation.")
-            st.write("## Price: RM 1,850.00")
+            st.markdown("### 🧪 Product 2: Crystal Energy Concentrate")
+            
+            if os.path.exists(img_path_2):
+                st.image(img_path_2, use_container_width=True)
+            else:
+                st.error(f"Image not found at path: {img_path_2}. Please verify your folder and file name.")
+                
+            st.write("**Description:** Hunza type catalytic elixir liquid concentrate designed to enhance cellular wetness.")
+            st.write("## Price: RM 195.00")
             
             if st.button("Buy Product 2 via Maybank2u FPX", key="btn_prod_2", use_container_width=True):
                 st.warning("Connecting via API gateway to Maybank2u (FPX)...")
+                
                 mock_lhdn_invoice_2 = {
                     "document_type": "Invoice",
                     "buyer_email": st.session_state.user_email,
-                    "item_description": "Live Blood Analysis Kit",
-                    "amount_myr": 1850.00,
+                    "item_description": "Crystal Energy Concentrate",
+                    "amount_myr": 195.00,
                     "tax_rate": "0%",
                     "currency": "MYR"
                 }
+                
                 st.info("🔄 Creating verified tax audit tracking record...")
                 st.json(mock_lhdn_invoice_2)
                 st.success("Redirecting customer to secure online banking portal...")
-                st.markdown("[👉 Proceed to Maybank2u FPX Payment Simulation](https://maybank2u.com.my)")
+                st.markdown("[👉 Click Here to Proceed to Maybank2u FPX Payment Gate](https://maybank2u.com.my)")
 
-    # --- TAB B: THE VIDEO PATH ENGINE ---
+    # --- TAB 3: THE VIDEO PATH ENGINE ---
     with tab_videos:
         st.subheader("Flantech Video & Scientific Archives")
         
