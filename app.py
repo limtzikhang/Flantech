@@ -3,9 +3,6 @@ import pandas as pd
 from collections import deque
 import streamlit as st
 import os
-
-import streamlit as st
-import os
 import hashlib
 
 # 1. Page Settings & Styling
@@ -49,46 +46,71 @@ if not st.session_state.authenticated:
 
 # 4. Main Logged-In System Dashboard
 else:
-    # --- SIDEBAR PANE CONFIGURATION ---
+    # --- LEFT SIDEBAR PANE MANIPULATION ---
     st.sidebar.title("🧬 Flantech Hub")
     st.sidebar.write(f"👤 Logged in as: **{st.session_state.user_email}**")
+    st.sidebar.divider()
     
+    # Left Pane Navigation Link Layout Menu Choice
+    st.sidebar.markdown("### 🗺️ Navigation Link Options")
+    navigation_choice = st.sidebar.radio(
+        "Select Page View:",
+        ["🏠 Home Dashboard", "📹 Video Library", "📦 product"]
+    )
+    
+    st.sidebar.divider()
     if st.sidebar.button("Log Out of System", use_container_width=True):
         st.session_state.authenticated = False
         st.session_state.user_email = None
         st.rerun()
         
-    st.title("Welcome to Flantech Asia Platform")
+    # --- RENDER MAIN INTERFACE SYSTEM BASED ON LEFT PANE LINK SELECTION ---
     
-    # SYSTEM TABS (Includes your exact requested layout parameters)
-    tab_dash, tab_product, tab_videos = st.tabs(["🏠 Home Dashboard", "📦 Product", "📹 Video Library"])
+    # IF USER SELECTS HOME
+    if navigation_choice == "🏠 Home Dashboard":
+        st.title("Welcome to Flantech Asia Platform")
+        st.subheader("Overview Dashboard")
+        st.write("Welcome back to Flantech Asia. Use the layout links inside the left navigation pane to explore products or watch analysis updates.")
     
-    # --- TAB 1: HOME DASHBOARD ---
-    with tab_dash:
-        st.subheader("Overview")
-        st.write("Welcome back to Flantech Asia. Use the tabs above to explore products or watch analysis updates.")
-    
-    # --- TAB 2: THE PRODUCT TAB ENGINE (WITH YOUR REAL LOCAL IMAGES) ---
-    with tab_product:
+    # IF USER SELECTS VIDEO LIBRARY
+    elif navigation_choice == "📹 Video Library":
+        st.title("Welcome to Flantech Asia Platform")
+        st.subheader("Flantech Video & Scientific Archives")
+        
+        video_target = "Megahydrate Live Blood Analysis.mp4"
+        
+        if os.path.exists(video_target):
+            st.write(f"🎥 Playing: **{video_target}**")
+            st.video(video_target)
+        else:
+            st.error(f"Asset lookup failure: '{video_target}' missing from main repo tree.")
+            
+        st.divider()
+        st.write("Alternative archives inside project container:")
+        st.code("• Dr Patrick Flanagan in his Laboratory.mp4\n• Use and Abuse of Live Blood Analysis.mp4")
+
+    # IF USER SELECTS THE NEW 'PRODUCT' NAVIGATION LINK BELOW VIDEO
+    elif navigation_choice == "📦 product":
+        st.title("🛒 Flantech Authorized E-Commerce Terminal")
         st.subheader("Available Products Catalog")
-        st.write("Click on any product image or button below to proceed to payment validation loops.")
+        st.write("Click on any product image or button below to process transaction billing routes via Maybank2u FPX.")
         st.divider()
         
-        # Split layout into 2 distinct columns for product cards
+        # Split screen window into two columns for your products layout
         p_col1, p_col2 = st.columns(2)
         
-        # Define paths to your stored images
+        # Define paths targeting files inside your repository folder
         img_path_1 = os.path.join("product", "MegaH.jpg")
         img_path_2 = os.path.join("product", "CrystalEnergy.jpg")
         
         with p_col1:
             st.markdown("### 💎 Product 1: MegaHydrate Premium Pack")
             
-            # Checks if your folder and picture exist before displaying to prevent crashes
+            # Reads local product image file path check
             if os.path.exists(img_path_1):
                 st.image(img_path_1, use_container_width=True)
             else:
-                st.error(f"Image not found at path: {img_path_1}. Please verify your folder and file name.")
+                st.error(f"Image not found at path: {img_path_1}. Please verify your file setup.")
                 
             st.write("**Description:** High-potency cellular hydration and antioxidant support compound formula.")
             st.write("## Price: RM 240.00")
@@ -96,7 +118,7 @@ else:
             if st.button("Buy Product 1 via Maybank2u FPX", key="btn_prod_1", use_container_width=True):
                 st.warning("Connecting via API gateway to Maybank2u (FPX)...")
                 
-                # Dynamic structures mapped out for future LHDN e-Invoicing transmission
+                # Generated payload structural layouts mapping to future LHDN audit loops
                 mock_lhdn_invoice = {
                     "document_type": "Invoice",
                     "buyer_email": st.session_state.user_email,
@@ -105,7 +127,6 @@ else:
                     "tax_rate": "0%",
                     "currency": "MYR"
                 }
-                
                 st.info("🔄 Creating verified tax audit tracking record...")
                 st.json(mock_lhdn_invoice)
                 st.success("Redirecting customer to secure online banking portal...")
@@ -117,7 +138,7 @@ else:
             if os.path.exists(img_path_2):
                 st.image(img_path_2, use_container_width=True)
             else:
-                st.error(f"Image not found at path: {img_path_2}. Please verify your folder and file name.")
+                st.error(f"Image not found at path: {img_path_2}. Please verify your file setup.")
                 
             st.write("**Description:** Hunza type catalytic elixir liquid concentrate designed to enhance cellular wetness.")
             st.write("## Price: RM 195.00")
@@ -133,24 +154,7 @@ else:
                     "tax_rate": "0%",
                     "currency": "MYR"
                 }
-                
                 st.info("🔄 Creating verified tax audit tracking record...")
                 st.json(mock_lhdn_invoice_2)
                 st.success("Redirecting customer to secure online banking portal...")
                 st.markdown("[👉 Click Here to Proceed to Maybank2u FPX Payment Gate](https://maybank2u.com.my)")
-
-    # --- TAB 3: THE VIDEO PATH ENGINE ---
-    with tab_videos:
-        st.subheader("Flantech Video & Scientific Archives")
-        
-        video_target = "Megahydrate Live Blood Analysis.mp4"
-        
-        if os.path.exists(video_target):
-            st.write(f"🎥 Playing: **{video_target}**")
-            st.video(video_target)
-        else:
-            st.error(f"Asset lookup failure: '{video_target}' missing from main repo tree.")
-            
-        st.divider()
-        st.write("Alternative archives inside project container:")
-        st.code("• Dr Patrick Flanagan in his Laboratory.mp4\n• Use and Abuse of Live Blood Analysis.mp4")
