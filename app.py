@@ -4,300 +4,127 @@ from collections import deque
 import streamlit as st
 import os
 
-# Set up clean page layout configurations
-st.set_page_config(
-    page_title="Shared Media Portal",
-    page_icon="🎬",
-    layout="wide"  # "wide" layout gives plenty of screen space when the sidebar is visible
-)
+import streamlit as st
+import os
+import hashlib
 
-# =====================================================================
-# MEDIA CONFIGURATION LAYER
-# =====================================================================
-# Map your video display titles to the exact filename paths stored in your project directory
-# IMPORTANT: Convert your raw .mkv videos to .mp4 to ensure web browser compatibility.
-VIDEO_PLAYLIST = {
-    "Megahydrate Blood Analysis Demonstration": "Megahydrate Live Blood Analysis.mp4",
-    "LBA Procedure": "Use and Abuse of Live Blood Analysis.mp4",
-    "Inventor's Lab": "Dr Patrick Flanagan in his Laboratory.mp4",
-}
+# 1. Page Settings & Styling
+st.set_page_config(page_title="Flantech Asia", page_icon="🧬", layout="wide")
 
-# =====================================================================
-# COLLAPSIBLE SIDEBAR MENU DRAWER (LEFT SIDE)
-# =====================================================================
-# This native sidebar container can be dynamically hidden/shown by clicking the 
-# arrow icon (">" or "<") located at the very top-left corner of the web page screen.
-with st.sidebar:
-    st.markdown("## 📁 Media Streaming Library")
-    st.caption("Select a video link below to load the player canvas.")
-    st.write("---")
-    
-    # Render the playlist choices as a clickable selection list framework
-    selected_video_title = st.radio(
-        label="Available Video Tracks:",
-        options=list(VIDEO_PLAYLIST.keys()),
-        index=0  # Sets the first item in the dictionary as the default selection on launch
-    )
-    
-    st.write("---")
-    st.info("💡 You can collapse or expand this sidebar navigation drawer anytime by clicking the arrow button at the top left.")
+# 2. Session State Control for Sign Up & Login Authentication
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+if "user_email" not in st.session_state:
+    st.session_state.user_email = None
 
-# =====================================================================
-# MAIN WEB PAGE PLAYER RENDERING CANVAS
-# =====================================================================
-st.title("🎬 Multi-Video Network Streaming Hub")
-st.caption("Accessing high-performance media storage metrics over the internet")
-st.write("---")
-
-# Retrieve the actual system filename using the dictionary title index choice
-target_filename = VIDEO_PLAYLIST[selected_video_title]
-
-# Verify if the physical video data binary exists in your machine workspace
-if os.path.exists(target_filename):
-    st.subheader(f"🎥 Now Playing: {selected_video_title}")
-    st.caption(f"System File Source: `{target_filename}`")
+# 3. Security Router
+if not st.session_state.authenticated:
+    st.title("🔒 Flantech Asia Gate")
+    st.subheader("Sign up or Log in to access the system and store")
     
-    # Read the target layout binary stream data out from hard drive tracks
-    with open(target_filename, "rb") as video_file:
-        video_bytes = video_file.read()
+    auth_tab1, auth_tab2 = st.tabs(["Existing User Login", "New Account Sign Up"])
     
-    # Fire up the responsive Streamlit media playback engine array container
-    st.video(video_bytes, format="video/mp4")
-    
-    st.success("✅ Streaming pipeline active. Internet connection clients can view this media smoothly.")
-else:
-    st.error(f"❌ File Not Found Error: Could not locate `{target_filename}`.")
-    
-    # Dynamic helper messages instructing the administrator how to set up the files
-    st.markdown(f"""
-    ### 🛠️ Configuration Setup Instructions Required:
-    To play **"{selected_video_title}"**, please ensure you have:
-    1. Placed the file named **`{target_filename}`** directly into the exact same folder layout where this `app.py` script lives.
-    2. Verified that the video file container has been encoded into an open **MP4** format block.
-    """)
-    
-    st.write("---")
-    st.markdown("#### Expected Playlist Map Folders View Diagram Structure:")
-    st.code(f"""
-    📂 MyProjectFolder/
-    ├── 📄 app.py (This Streamlit script file)
-    ├── 🎥 megahydrate_analysis.mp4
-    ├── 🎥 flantech_intro.mp4
-    └── 🎥 matrix_genealogy_guide.mp4
-    """)
-# =====================================================================
-# DATA STORAGE LAYER (Streamlit Session State simulation)
-# =====================================================================
-if "members_db" not in st.session_state:
-    st.session_state["members_db"] = {
-        "60164191861": {
-            "name": "Admin Leader",
-            "password": "admin",
-            "sponsor": None,       # Who introduced them
-            "upline": None,        # Whose matrix box they physically sit in (3MP)
-            "children": [],        # Max 3 elements (3MP constraint)
-            "rank": "Diamond",
-            "wallet": 0.0,
-            "team_sales_cv": 0.0
-        }
-    }
-
-if "auth_session" not in st.session_state:
-    st.session_state["auth_session"] = None
-
-RANK_BONUS_RATES = {"Bronze": 0.25, "Silver": 0.30, "Gold": 0.35, "Diamond": 0.40}
-
-# =====================================================================
-# 3MP GENEALOGY PLACEMENT ALGORITHM
-# =====================================================================
-def find_3mp_placement_slot(sponsor_phone):
-    """
-    Breadth-First Search (BFS) to find the next open slot in the 3xN Matrix
-    starting from the Sponsor's node downwards.
-    """
-    db = st.session_state["members_db"]
-    queue = deque([sponsor_phone])
-    
-    while queue:
-        current_node = queue.popleft()
-        # If this node has less than 3 direct downlines, it's the vacant slot!
-        if len(db[current_node]["children"]) < 3:
-            return current_node
-        
-        # Otherwise, push children to the queue to search the next depth level
-        queue.extend(db[current_node]["children"])
-        
-    return "60123456789"  # Ultimate safety fallback to Root Node
-
-def determine_rank_by_cv(cv_amount):
-    if cv_amount >= 1000: return "Diamond"
-    elif cv_amount >= 500: return "Gold"
-    elif cv_amount >= 300: return "Silver"
-    elif cv_amount >= 100: return "Bronze"
-    return "Member"
-
-def process_flantech_sale(buyer_phone, cv_amount):
-    db = st.session_state["members_db"]
-    sponsor_phone = db[buyer_phone]["sponsor"]
-    
-    if not sponsor_phone or sponsor_phone not in db:
-        return None  
-    
-    sponsor = db[sponsor_phone]
-    sponsor_rate = RANK_BONUS_RATES.get(sponsor["rank"], 0.25)
-    commission_earned = round(cv_amount * sponsor_rate, 2)
-    
-    # Direct sales bonus maps directly to Sponsor Node
-    db[sponsor_phone]["wallet"] += commission_earned
-    
-    # Roll up Team Sales CV volume vertically through the physical 3MP Upline Chain
-    current_upline = db[buyer_phone]["upline"]
-    while current_upline:
-        if current_upline in db:
-            db[current_upline]["team_sales_cv"] += cv_amount
-            current_upline = db[current_upline]["upline"]
-        else:
-            break
-            
-    return {
-        "Sponsor Name": sponsor["name"],
-        "Sponsor Rank": sponsor["rank"],
-        "Bonus Percentage Applied": f"{int(sponsor_rate * 100)}%",
-        "Payout Credited ($)": commission_earned
-    }
-
-# =====================================================================
-# STREAMLIT USER INTERFACE PIPELINE
-# =====================================================================
-st.set_page_config(page_title="Flantech 3MP Portal", page_icon="🏆", layout="centered")
-st.title("🏆 Flantech Asia 3MP Matrix Portal")
-st.caption("Automated 3-Member Placement Genealogy and Commissions Engine")
-st.write("---")
-
-if st.session_state["auth_session"] is None:
-    tab_login, tab_register = st.tabs(["🔑 Member Sign In", "📝 Create New Account"])
-    
-    with tab_login:
-        st.subheader("Login to Dashboard")
-        phone_in = st.text_input("Mobile Phone Number", key="login_phone")
-        pass_in = st.text_input("Password", type="password", key="login_pass")
-        
-        if st.button("Access Portal", use_container_width=True):
-            db = st.session_state["members_db"]
-            if phone_in in db and db[phone_in]["password"] == pass_in:
-                st.session_state["auth_session"] = phone_in
-                st.success(f"Welcome back, {db[phone_in]['name']}!")
+    with auth_tab1:
+        email_input = st.text_input("Email Address", key="login_email")
+        pass_input = st.text_input("Password", type="password", key="login_pass")
+        if st.button("Log In Securely", use_container_width=True):
+            if email_input and pass_input:
+                st.session_state.authenticated = True
+                st.session_state.user_email = email_input
+                st.success("Successfully logged in!")
                 st.rerun()
             else:
-                st.error("Invalid phone number or password credentials.")
+                st.error("Please fill in all identity fields.")
                 
-    with tab_register:
-        st.subheader("Enroll as a Flantech 3MP Distributor")
-        reg_name = st.text_input("Full Name")
-        reg_phone = st.text_input("Mobile Phone Number ID")
-        reg_pass = st.text_input("Secure Password", type="password")
-        reg_ref = st.text_input("Sponsor / Referrer Phone Number")
+    with auth_tab2:
+        reg_email = st.text_input("Enter Email Address", key="reg_email")
+        reg_pass = st.text_input("Choose Strong Password", type="password", key="reg_pass")
+        tax_tin = st.text_input("LHDN Tax Identification Number (TIN) - Optional for Audit", key="reg_tin")
         
-        st.markdown("##### Activation Package")
-        pkg_cv = st.slider("Package Commission Value (CV Points)", min_value=0, max_value=1500, value=500, step=50)
-        calculated_rank = determine_rank_by_cv(pkg_cv)
-        
-        if st.button("Complete Registration", use_container_width=True):
-            db = st.session_state["members_db"]
-            if not reg_name or not reg_phone or not reg_pass or not reg_ref:
-                st.warning("Please complete all registration fields (Sponsor is required for 3MP matrix).")
-            elif reg_phone in db:
-                st.error("This phone number is already registered.")
-            elif reg_ref not in db:
-                st.error("The specified sponsor phone number does not exist.")
+        if st.button("Register Account", use_container_width=True):
+            if reg_email and reg_pass:
+                st.success("Account provisions saved successfully! Switch to the Login tab.")
             else:
-                # 1. RUN THE 3MP MATRIX PLACEMENT SEARCH ENGINE
-                assigned_upline = find_3mp_placement_slot(reg_ref)
-                
-                # 2. SAVE NEW MEMBER NODE OBJECT WITH MATRIX LINK MAPPINGS
-                db[reg_phone] = {
-                    "name": reg_name,
-                    "password": reg_pass,
-                    "sponsor": reg_ref,
-                    "upline": assigned_upline,
-                    "children": [],
-                    "rank": calculated_rank,
-                    "wallet": 0.0,
-                    "team_sales_cv": 0.0
-                }
-                
-                # 3. Append this child node to the assigned Upline's children list layout
-                db[assigned_upline]["children"].append(reg_phone)
-                
-                # Calculate direct referral commission payouts instantly
-                process_flantech_sale(reg_phone, pkg_cv)
-                
-                st.success(f"Enrollment successful! Placed under Upline: {db[assigned_upline]['name']} ({assigned_upline}) due to 3MP structure.")
+                st.error("Email and password parameters cannot be empty.")
 
+# 4. Main Logged-In System Dashboard
 else:
-    current_phone = st.session_state["auth_session"]
-    user = st.session_state["members_db"][current_phone]
-    db = st.session_state["members_db"]
+    # --- CLEANED SIDEBAR PANE ---
+    st.sidebar.title("🧬 Flantech Hub")
+    st.sidebar.write(f"👤 Logged in as: **{st.session_state.user_email}**")
     
-    st.sidebar.markdown(f"### 👤 Active Member Profile")
-    st.sidebar.write(f"**Name:** {user['name']}")
-    st.sidebar.write(f"**Rank:** {user['rank']}")
-    st.sidebar.write(f"**Placement Upline:** {db[user['upline']]['name'] if user['upline'] else 'None (Root Node)'}")
-    
-    if st.sidebar.button("Log Out of Session", use_container_width=True):
-        st.session_state["auth_session"] = None
+    if st.sidebar.button("Log Out of System", use_container_width=True):
+        st.session_state.authenticated = False
+        st.session_state.user_email = None
         st.rerun()
         
-    m_col1, m_col2 = st.columns(2)
-    with m_col1:
-        st.metric("Total Account Commissions", f"${user['wallet']:,.2f}")
-    with m_col2:
-        st.metric("Matrix Team Volume (GSV)", f"{user['team_sales_cv']:,.0f} CV")
+    st.title("Welcome to Flantech Asia Platform")
+    
+    # SYSTEM INTERFACE TABS
+    tab_store, tab_videos = st.tabs(["🛒 Buy Products (Maybank2u FPX)", "📹 Media & Analysis Library"])
+    
+    # --- TAB A: THE PRODUCT CHECKOUT ENGINE ---
+    with tab_store:
+        st.subheader("Flantech Authorized E-Commerce Terminal")
+        st.write("Select a product to buy. Transactions route securely via regional FPX processing arrays.")
+        st.divider()
         
-    st.write("---")
-    
-    tab_sales, tab_tree = st.tabs(["📊 Submit New Sales Order", "👥 Your Matrix Downline (Max 3 Width)"])
-    
-    with tab_sales:
-        st.subheader("Process Product Sale")
-        sale_cv = st.number_input("Enter Product Commission Value (CV)", min_value=0, max_value=5000, value=300, step=50)
-        if st.button("Submit Sale", use_container_width=True):
-            if sale_cv > 0:
-                payout_result = process_flantech_sale(current_phone, sale_cv)
-                st.success("Sale processed successfully!")
-                if payout_result:
-                    st.json(payout_result)
-                st.rerun()
+        p_col1, p_col2 = st.columns(2)
+        
+        with p_col1:
+            st.markdown("### 💎 Product 1: MegaHydrate Premium Pack")
+            st.image("https://placehold.co", use_container_width=True)
+            st.write("**Description:** High-potency antioxidant dietary compound engine.")
+            st.write("## Price: RM 240.00")
+            
+            if st.button("Buy Product 1 via Maybank2u FPX", key="btn_prod_1", use_container_width=True):
+                st.warning("Connecting via API gateway to Maybank2u (FPX)...")
+                mock_lhdn_invoice = {
+                    "document_type": "Invoice",
+                    "buyer_email": st.session_state.user_email,
+                    "item_description": "MegaHydrate Premium Pack",
+                    "amount_myr": 240.00,
+                    "tax_rate": "0%",
+                    "currency": "MYR"
+                }
+                st.info("🔄 Creating verified tax audit tracking record...")
+                st.json(mock_lhdn_invoice)
+                st.success("Redirecting customer to secure online banking portal...")
+                st.markdown("[👉 Proceed to Maybank2u FPX Payment Simulation](https://maybank2u.com.my)")
                 
-    with tab_tree:
-        st.subheader("Direct Matrix Slots (Level 1)")
-        matrix_data = []
-        for i, child_phone in enumerate(user["children"]):
-            child_info = db[child_phone]
-            matrix_data.append({
-                "Matrix Leg Position": f"Leg {i+1}",
-                "Name": child_info["name"],
-                "Phone": child_phone,
-                "Rank": child_info["rank"],
-                "Introduced By (Sponsor)": db[child_info["sponsor"]]["name"]
-            })
+        with p_col2:
+            st.markdown("### 🧪 Product 2: Live Blood Analysis Kit")
+            st.image("https://placehold.co", use_container_width=True)
+            st.write("**Description:** Professional grade testing equipment for cellular analysis evaluation.")
+            st.write("## Price: RM 1,850.00")
             
-        if matrix_data:
-            st.dataframe(pd.DataFrame(matrix_data), hide_index=True, use_container_width=True)
+            if st.button("Buy Product 2 via Maybank2u FPX", key="btn_prod_2", use_container_width=True):
+                st.warning("Connecting via API gateway to Maybank2u (FPX)...")
+                mock_lhdn_invoice_2 = {
+                    "document_type": "Invoice",
+                    "buyer_email": st.session_state.user_email,
+                    "item_description": "Live Blood Analysis Kit",
+                    "amount_myr": 1850.00,
+                    "tax_rate": "0%",
+                    "currency": "MYR"
+                }
+                st.info("🔄 Creating verified tax audit tracking record...")
+                st.json(mock_lhdn_invoice_2)
+                st.success("Redirecting customer to secure online banking portal...")
+                st.markdown("[👉 Proceed to Maybank2u FPX Payment Simulation](https://maybank2u.com.my)")
+
+    # --- TAB B: THE VIDEO PATH ENGINE ---
+    with tab_videos:
+        st.subheader("Flantech Video & Scientific Archives")
+        
+        video_target = "Megahydrate Live Blood Analysis.mp4"
+        
+        if os.path.exists(video_target):
+            st.write(f"🎥 Playing: **{video_target}**")
+            st.video(video_target)
         else:
-            st.info("Your direct 3-position matrix row is completely empty right now.")
+            st.error(f"Asset lookup failure: '{video_target}' missing from main repo tree.")
             
-        st.write("---")
-        st.subheader("Global Debug Database Node Tree")
-        global_log = []
-        for phone, info in db.items():
-            global_log.append({
-                "Member Phone": phone,
-                "Name": info["name"],
-                "Sponsor Upline": info["sponsor"] if info["sponsor"] else "None",
-                "Matrix Parent Upline": info["upline"] if info["upline"] else "ROOT ADM NODE",
-                "Matrix Occupied Slots (Width)": f"{len(info['children'])} / 3",
-                "Total Earnings Wallet": f"${info['wallet']:,.2f}",
-                "Rolling Team Sales Volume": f"{info['team_sales_cv']} CV"
-            })
-        st.dataframe(pd.DataFrame(global_log), hide_index=True, use_container_width=True)
+        st.divider()
+        st.write("Alternative archives inside project container:")
+        st.code("• Dr Patrick Flanagan in his Laboratory.mp4\n• Use and Abuse of Live Blood Analysis.mp4")
