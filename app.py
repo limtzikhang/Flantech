@@ -8,7 +8,8 @@ import streamlit as st
 import os
 import hashlib
 
-# 1. Page Settings & Styling
+
+# 1. Page Configuration & Structure
 st.set_page_config(page_title="Flantech Asia", page_icon="🧬", layout="wide")
 
 # 2. Session State Control for Sign Up & Login Authentication
@@ -49,39 +50,17 @@ if not st.session_state.authenticated:
 
 # 4. Main Logged-In System Dashboard
 else:
-    # --- INDEPENDENT SIDEBAR PANE FORCED LAYOUT ---
-    st.sidebar.title("🧬 Flantech Hub")
-    st.sidebar.write(f"👤 Logged in as: **{st.session_state.user_email}**")
-    st.sidebar.divider()
-    
-    st.sidebar.markdown("### 🗺️ Navigation Menu Links")
-    
-    # Using a selectbox inside the sidebar forces the layout to display all 3 choices perfectly without breaking or clipping
-    navigation_choice = st.sidebar.selectbox(
-        "Go to page:",
-        ["🏠 Home Dashboard", "📹 Video Library", "📦 product"],
-        index=0
-    )
-    
-    st.sidebar.divider()
-    if st.sidebar.button("Log Out of System", use_container_width=True):
-        st.session_state.authenticated = False
-        st.session_state.user_email = None
-        st.rerun()
-        
-    # --- MAIN ENGINE ROUTER CONTENT ---
-    
-    if navigation_choice == "🏠 Home Dashboard":
+    # --- DYNAMIC FUNCTIONS FOR EACH NAVIGATION LINK VIEW ---
+    def show_home():
         st.title("Welcome to Flantech Asia Platform")
         st.subheader("Overview Dashboard")
-        st.write("Welcome back to Flantech Asia. Use the layout selectbox link options inside the left navigation pane to view products or watch updates.")
-        
-    elif navigation_choice == "📹 Video Library":
+        st.write("Welcome back to Flantech Asia. Use the layout links inside the left navigation pane to view products or watch updates.")
+
+    def show_video():
         st.title("Welcome to Flantech Asia Platform")
         st.subheader("Flantech Video & Scientific Archives")
         
         video_target = "Megahydrate Live Blood Analysis.mp4"
-        
         if os.path.exists(video_target):
             st.write(f"🎥 Playing: **{video_target}**")
             st.video(video_target)
@@ -92,14 +71,13 @@ else:
         st.write("Alternative archives inside project container:")
         st.code("• Dr Patrick Flanagan in his Laboratory.mp4\n• Use and Abuse of Live Blood Analysis.mp4")
 
-    elif navigation_choice == "📦 product":
+    def show_product():
         st.title("🛒 Flantech Authorized E-Commerce Terminal")
         st.subheader("Available Products Catalog")
         st.write("Click on any product image or button below to process transaction billing routes via Maybank2u FPX.")
         st.divider()
         
         p_col1, p_col2 = st.columns(2)
-        
         img_path_1 = os.path.join("product", "MegaH.jpg")
         img_path_2 = os.path.join("product", "CrystalEnergy.jpg")
         
@@ -108,9 +86,9 @@ else:
             if os.path.exists(img_path_1):
                 st.image(img_path_1, use_container_width=True)
             else:
-                st.error(f"Image not found at path: {img_path_1}. Please verify your file setup.")
+                st.error(f"Image not found at path: {img_path_1}.")
                 
-            st.write("**Description:** High-potency cellular hydration and antioxidant support compound formula.")
+            st.write("**Description:** High-potency cellular hydration support compound formula.")
             st.write("## Price: RM 240.00")
             
             if st.button("Buy Product 1 via Maybank2u FPX", key="btn_prod_1", use_container_width=True):
@@ -133,7 +111,7 @@ else:
             if os.path.exists(img_path_2):
                 st.image(img_path_2, use_container_width=True)
             else:
-                st.error(f"Image not found at path: {img_path_2}. Please verify your file setup.")
+                st.error(f"Image not found at path: {img_path_2}.")
                 
             st.write("**Description:** Hunza type catalytic elixir liquid concentrate designed to enhance cellular wetness.")
             st.write("## Price: RM 195.00")
@@ -152,3 +130,21 @@ else:
                 st.json(mock_lhdn_invoice_2)
                 st.success("Redirecting customer to secure online banking portal...")
                 st.markdown("[👉 Click Here to Proceed to Maybank2u FPX Payment Gate](https://maybank2u.com.my)")
+
+    # --- FORCED STREAMLIT NAVIGATION OVERRIDE PANE ---
+    # This completely replaces the default links with our clean layout lists!
+    pg = st.navigation([
+        st.Page(show_home, title="🏠 Home Dashboard", url_path="home"),
+        st.Page(show_video, title="📹 Video Library", url_path="video_library"),
+        st.Page(show_product, title="📦 product", url_path="product")
+    ])
+    
+    # Render user account elements on top of the menu links
+    st.sidebar.markdown(f"👤 Account: **{st.session_state.user_email}**")
+    if st.sidebar.button("Log Out of System", use_container_width=True):
+        st.session_state.authenticated = False
+        st.session_state.user_email = None
+        st.rerun()
+        
+    # Execute active view page layout routing engine
+    pg.run()
