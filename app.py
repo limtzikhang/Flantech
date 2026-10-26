@@ -5,6 +5,10 @@ import streamlit as st
 import os
 import hashlib
 
+import streamlit as st
+import os
+import hashlib
+
 # 1. Page Settings & Styling
 st.set_page_config(page_title="Flantech Asia", page_icon="🧬", layout="wide")
 
