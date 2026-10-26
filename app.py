@@ -18,8 +18,8 @@ st.set_page_config(
 # IMPORTANT: Convert your raw .mkv videos to .mp4 to ensure web browser compatibility.
 VIDEO_PLAYLIST = {
     "Megahydrate Blood Analysis Demonstration": "Megahydrate Live Blood Analysis.mp4",
-    "Flantech Asia Corporate Marketing Overview": "flantech_intro.mp4",
-    "Distributor 3MP Genealogy Matrix Tutorial": "matrix_genealogy_guide.mp4",
+    "LBA Procedure": "Use and Abuse of Live Blood Analysis.mp4",
+    "Inventor's Lab": "Dr Patrick Flanagan in his Laboratory.mp4",
 }
 
 # =====================================================================
