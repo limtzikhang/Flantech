@@ -3,21 +3,43 @@ import os
 
 st.set_page_config(page_title="Flantech Products", page_icon="📦", layout="wide")
 
-# Check if the user is authenticated from the main page gate
-if "authenticated" not in st.session_state or not st.session_state.authenticated:
-    st.warning("🔒 Access Denied. Please navigate back to the main page and log in first.")
+# Initialize session state tracking parameter checks
+if "authenticated" not in st.session_state:
+    st.session_state.authenticated = False
+
+# IF NOT LOGGED IN: Show a clean login box right here inside the tab!
+if not st.session_state.authenticated:
+    st.title("🔒 Security Validation Gate")
+    st.subheader("Please verify your account credentials to view the product catalog")
+    
+    email_input = st.text_input("Email Address", key="prod_login_email")
+    pass_input = st.text_input("Password", type="password", key="prod_login_pass")
+    
+    if st.button("Verify & Open Store Catalog", use_container_width=True):
+        if email_input and pass_input:
+            st.session_state.authenticated = True
+            st.session_state.user_email = email_input
+            st.success("Identity verified successfully! Reloading store...")
+            st.rerun()
+        else:
+            st.error("Please fill in your login credentials.")
+
+# IF ALREADY LOGGED IN: Render your product catalog store setup smoothly
 else:
     st.sidebar.title("🧬 Flantech Hub")
     st.sidebar.write(f"👤 Account: **{st.session_state.user_email}**")
     
+    if st.sidebar.button("Log Out of System", use_container_width=True):
+        st.session_state.authenticated = False
+        st.session_state.user_email = None
+        st.rerun()
+        
     st.title("🛒 Flantech Authorized E-Commerce Terminal")
     st.subheader("Available Products Catalog")
     st.write("Click on any product image or button below to process transaction billing routes via Maybank2u FPX.")
     st.divider()
     
     p_col1, p_col2 = st.columns(2)
-    
-    # Target image structures inside your repository folder
     img_path_1 = os.path.join("product", "MegaH.jpg")
     img_path_2 = os.path.join("product", "CrystalEnergy.jpg")
     
