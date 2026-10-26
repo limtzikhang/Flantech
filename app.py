@@ -1,10 +1,6 @@
 import streamlit as st
 import pandas as pd
 from collections import deque
-import streamlit as st
-import os
-import hashlib
-import streamlit as st
 import os
 import hashlib
 
@@ -12,11 +8,22 @@ import hashlib
 # 1. Page Configuration & Structure
 st.set_page_config(page_title="Flantech Asia", page_icon="🧬", layout="wide")
 
+# Hide standard multi-page side sidebar markers if Streamlit is forcing folder tracking
+st.markdown("""
+    <style>
+    [data-testid="stSidebarNav"] {display: none !important;}
+    </style>
+""", unsafe_allow_html=True)
+
 # 2. Session State Control for Sign Up & Login Authentication
 if "authenticated" not in st.session_state:
     st.session_state.authenticated = False
 if "user_email" not in st.session_state:
     st.session_state.user_email = None
+
+# Initialize forced navigation routing path memory
+if "forced_page" not in st.session_state:
+    st.session_state.forced_page = "Home"
 
 # 3. Security Router (Login / Sign Up Layout)
 if not st.session_state.authenticated:
@@ -50,13 +57,42 @@ if not st.session_state.authenticated:
 
 # 4. Main Logged-In System Dashboard
 else:
-    # --- DYNAMIC FUNCTIONS FOR EACH NAVIGATION LINK VIEW ---
-    def show_home():
+    # --- HAND-BUILT FORCED NAVIGATION MENU ---
+    st.sidebar.title("🧬 Flantech Hub")
+    st.sidebar.write(f"👤 Account: **{st.session_state.user_email}**")
+    st.sidebar.divider()
+    
+    st.sidebar.markdown("### 🗺️ Navigation Links")
+    
+    # Custom interactive layout blocks to simulate native links
+    if st.sidebar.button("🏠 Home Dashboard", use_container_width=True):
+        st.session_state.forced_page = "Home"
+        st.rerun()
+        
+    if st.sidebar.button("📹 Video Library", use_container_width=True):
+        st.session_state.forced_page = "Video"
+        st.rerun()
+        
+    # This button is hardcoded to show up directly below Video Library no matter what!
+    if st.sidebar.button("📦 product", use_container_width=True):
+        st.session_state.forced_page = "Product"
+        st.rerun()
+        
+    st.sidebar.divider()
+    if st.sidebar.button("Log Out of System", use_container_width=True):
+        st.session_state.authenticated = False
+        st.session_state.user_email = None
+        st.session_state.forced_page = "Home"
+        st.rerun()
+        
+    # --- MAIN VIEW WINDOW ROUTER ---
+    
+    if st.session_state.forced_page == "Home":
         st.title("Welcome to Flantech Asia Platform")
         st.subheader("Overview Dashboard")
-        st.write("Welcome back to Flantech Asia. Use the layout links inside the left navigation pane to view products or watch updates.")
-
-    def show_video():
+        st.write("Welcome back to Flantech Asia. Click the link cards on the left panel menu to explore products or verify actions.")
+        
+    elif st.session_state.forced_page == "Video":
         st.title("Welcome to Flantech Asia Platform")
         st.subheader("Flantech Video & Scientific Archives")
         
@@ -71,7 +107,7 @@ else:
         st.write("Alternative archives inside project container:")
         st.code("• Dr Patrick Flanagan in his Laboratory.mp4\n• Use and Abuse of Live Blood Analysis.mp4")
 
-    def show_product():
+    elif st.session_state.forced_page == "Product":
         st.title("🛒 Flantech Authorized E-Commerce Terminal")
         st.subheader("Available Products Catalog")
         st.write("Click on any product image or button below to process transaction billing routes via Maybank2u FPX.")
@@ -86,9 +122,9 @@ else:
             if os.path.exists(img_path_1):
                 st.image(img_path_1, use_container_width=True)
             else:
-                st.error(f"Image not found at path: {img_path_1}.")
+                st.error(f"Image not found at path: {img_path_1}. Please verify your folder and file name.")
                 
-            st.write("**Description:** High-potency cellular hydration support compound formula.")
+            st.write("**Description:** High-potency cellular hydration and antioxidant support compound formula.")
             st.write("## Price: RM 240.00")
             
             if st.button("Buy Product 1 via Maybank2u FPX", key="btn_prod_1", use_container_width=True):
@@ -111,7 +147,7 @@ else:
             if os.path.exists(img_path_2):
                 st.image(img_path_2, use_container_width=True)
             else:
-                st.error(f"Image not found at path: {img_path_2}.")
+                st.error(f"Image not found at path: {img_path_2}. Please verify your folder and file name.")
                 
             st.write("**Description:** Hunza type catalytic elixir liquid concentrate designed to enhance cellular wetness.")
             st.write("## Price: RM 195.00")
@@ -130,21 +166,3 @@ else:
                 st.json(mock_lhdn_invoice_2)
                 st.success("Redirecting customer to secure online banking portal...")
                 st.markdown("[👉 Click Here to Proceed to Maybank2u FPX Payment Gate](https://maybank2u.com.my)")
-
-    # --- FORCED STREAMLIT NAVIGATION OVERRIDE PANE ---
-    # This completely replaces the default links with our clean layout lists!
-    pg = st.navigation([
-        st.Page(show_home, title="🏠 Home Dashboard", url_path="home"),
-        st.Page(show_video, title="📹 Video Library", url_path="video_library"),
-        st.Page(show_product, title="📦 product", url_path="product")
-    ])
-    
-    # Render user account elements on top of the menu links
-    st.sidebar.markdown(f"👤 Account: **{st.session_state.user_email}**")
-    if st.sidebar.button("Log Out of System", use_container_width=True):
-        st.session_state.authenticated = False
-        st.session_state.user_email = None
-        st.rerun()
-        
-    # Execute active view page layout routing engine
-    pg.run()
