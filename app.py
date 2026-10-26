@@ -17,7 +17,7 @@ st.set_page_config(
 # Map your video display titles to the exact filename paths stored in your project directory
 # IMPORTANT: Convert your raw .mkv videos to .mp4 to ensure web browser compatibility.
 VIDEO_PLAYLIST = {
-    "Megahydrate Blood Analysis Demonstration": "megahydrate_analysis.mp4",
+    "Megahydrate Blood Analysis Demonstration": "Megahydrate Live Blood Analysis.mp4",
     "Flantech Asia Corporate Marketing Overview": "flantech_intro.mp4",
     "Distributor 3MP Genealogy Matrix Tutorial": "matrix_genealogy_guide.mp4",
 }
