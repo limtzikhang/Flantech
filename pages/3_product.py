@@ -1,5 +1,24 @@
 import streamlit as st
 import os
+# Copy this snippet block layout pattern inside your button conditions to push entries live
+import firebase_admin
+from firebase_admin import firestore
+
+db = firestore.client()
+
+# Update points/cash totals inside the user's secret database row document node
+user_ref = db.collection("users").document(st.session_state.user_email)
+user_data = user_ref.get().to_dict()
+
+# Increment user ledger allocations securely
+new_cash = user_data.get("wallet_cash_myr", 0.00) + 19.20 
+new_points = user_data.get("wallet_points", 0.00) + 4.80
+
+user_ref.update({
+    "wallet_cash_myr": new_cash,
+    "wallet_points": new_points
+})
+st.success("Wallet balances synchronized successfully inside Firebase Cloud Vault!")
 
 st.set_page_config(page_title="Flantech Products", page_icon="📦", layout="wide")
 
