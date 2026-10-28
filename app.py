@@ -194,18 +194,19 @@ def render_auth_portal():
                 return
                 
             try:
+                # Retrieve validation parameter safely from the Streamlit vault variables
                 api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
                 
-                # FIXED TARGET MATRIX PATHS: Direct endpoint mapping targets isolated correctly
+                # Dynamic targeted API registration route
                 api_url = "https://googleapis.com"
-                update_url = "https://googleapis.com"
-                
                 params = {"key": api_key}
                 headers = {"Content-Type": "application/json"}
                 
+                # FIXED PLATFORM STRUCTURE: We pass displayName natively inside the initial creation block payload
                 payload = {
                     "email": new_email,
                     "password": new_password,
+                    "displayName": new_name,
                     "returnSecureToken": True
                 }
                 
@@ -219,13 +220,7 @@ def render_auth_portal():
                 res_data = response.json()
                 new_uid = res_data["localId"]
                 
-                # FIXED PROFILE INTERNALS: Points to the legitimate profile updating address mapping bounds
-                requests.post(update_url, params=params, json={
-                    "idToken": res_data["idToken"],
-                    "displayName": new_name,
-                    "returnSecureToken": True
-                }, headers=headers, timeout=10)
-                
+                # Check for admin UID match during structural signup properties validation
                 assigned_role = "admin" if new_uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1" else "b2c"
                 
                 structured_payload = {
