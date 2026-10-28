@@ -14,7 +14,11 @@ if not firebase_admin._apps:
         if "firebase_service_account" in st.secrets:
             cred_dict = dict(st.secrets["firebase_service_account"])
             cred = credentials.Certificate(cred_dict)
-            firebase_admin.initialize_app(cred)
+            
+            # EXPLICIT FIX: We pass options containing the specific project identifier
+            firebase_admin.initialize_app(cred, {
+                'projectId': 'flantech-asia',
+            })
         else:
             # Fallback path checking for local repository structures
             base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -22,7 +26,11 @@ if not firebase_admin._apps:
             
             if os.path.exists(key_path):
                 cred = credentials.Certificate(key_path)
-                firebase_admin.initialize_app(cred)
+                
+                # EXPLICIT FIX: Mirror project tracking attributes locally
+                firebase_admin.initialize_app(cred, {
+                    'projectId': 'flantech-asia',
+                })
             else:
                 st.error("🚨 Configuration Error: Firebase keys missing. Please configure Streamlit Secrets or upload serviceAccountKey.json.")
                 st.stop()
@@ -31,6 +39,7 @@ if not firebase_admin._apps:
         st.stop()
 
 db = firestore.client()
+
 
 # =============================================================================
 # 2. APPLICATION CONFIGURATION & STATE ENGINES
