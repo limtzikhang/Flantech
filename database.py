@@ -1,47 +1,59 @@
 # database.py
 import firebase_admin
-from firebase_admin import credentials, firestore
+from firebase_admin import credentials
 import streamlit as st
 import os
 from google.cloud import firestore as google_firestore
 from google.oauth2 import service_account
 
-# Absolute containment rules to suppress environment plugin checking
+# Force eliminate environment plugin detection checks completely
 os.environ["GCM_METADATA_TIMEOUT"] = "0"
 os.environ["AUTO_RENEW_CREDENTIALS"] = "False"
 os.environ["GOOGLE_AUTH_SUPPRESS_CREDENTIALS_WARNINGS"] = "true"
 
 db = None
 
-if not firebase_admin._apps:
-    if "firebase" in st.secrets:
-        # Pull parameters dynamically from the Secrets panel map
-        firebase_dict = dict(st.secrets["firebase"])
-        if "private_key" in firebase_dict:
-            firebase_dict["private_key"] = firebase_dict["private_key"].replace("\\n", "\n").strip()
-            
+# Initialize the exact dictionary payload mapping
+if "firebase" in st.secrets:
+    firebase_dict = dict(st.secrets["firebase"])
+    if "private_key" in firebase_dict:
+        firebase_dict["private_key"] = firebase_dict["private_key"].replace("\\n", "\n").strip()
+else:
+    import json
+    try:
+        with open("flantech-asia-firebase-adminsdk-fbsvc-43ed14c73a.json", "r") as f:
+            firebase_dict = json.load(f)
+    except Exception:
+        firebase_dict = {}
+
+# =====================================================================
+# THE ULTIMATE STANDALONE INITIALIZATION ENGINE
+# =====================================================================
+if firebase_dict:
+    # 1. Bind to standard Python Firebase Admin space for core setups
+    if not firebase_admin._apps:
         cred = credentials.Certificate(firebase_dict)
         firebase_admin.initialize_app(cred)
-        
-        # FIX: Directly use google.oauth2 constructor to isolate connection parameters
-        g_cred = service_account.Credentials.from_service_account_info(firebase_dict)
-        db = google_firestore.Client(project="flantech-asia", credentials=g_cred)
-    else:
-        # Local computer developer execution fallback route
-        cred = credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-43ed14c73a.json")
-        firebase_admin.initialize_app(cred)
-        db = firestore.client()
+    
+    # 2. FORCE EXPLICIT LOCAL CLIENT DISCOVERY ENGINE (Bypasses metadata plugin)
+    # By feeding client options directly, the client never pings Google internal URLs
+    g_cred = service_account.Credentials.from_service_account_info(firebase_dict)
+    
+    from google.api_core.client_options import ClientOptions
+    custom_options = ClientOptions(api_endpoint="://googleapis.com")
+    
+    db = google_firestore.Client(
+        project="flantech-asia", 
+        credentials=g_cred,
+        client_options=custom_options
+    )
 else:
-    # Rerun logic mapping alignment to sustain active compilation states
-    if "firebase" in st.secrets:
-        firebase_dict = dict(st.secrets["firebase"])
-        if "private_key" in firebase_dict:
-            firebase_dict["private_key"] = firebase_dict["private_key"].replace("\\n", "\n").strip()
-        g_cred = service_account.Credentials.from_service_account_info(firebase_dict)
-        db = google_firestore.Client(project="flantech-asia", credentials=g_cred)
-    else:
-        db = firestore.client()
+    # Fallback backup tracker
+    db = firestore.client()
 
+# =====================================================================
+# SYSTEM OPERATIONAL HIERARCHY METHODS
+# =====================================================================
 def verify_upline(upline_id: str, upline_phone: str) -> tuple[bool, str]:
     clean_id = upline_id.strip() if upline_id else ""
     clean_phone = upline_phone.strip() if upline_phone else ""
