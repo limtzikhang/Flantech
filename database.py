@@ -27,8 +27,9 @@ class SimpleFirestoreRESTClient:
         return self
 
     def set(self, data_dict):
-        """Writes or overwrites a document using the Firestore REST API."""
-        url = f"{BASE_URL}/{self.active_collection}/{self.active_doc_id}"
+        """Writes a brand new document securely to Firestore using the REST API."""
+        # FIX: Append documentId assignment parameter to ensure the record locks into the database
+        url = f"{BASE_URL}/{self.active_collection}?documentId={self.active_doc_id}"
         
         # Transform flat dictionary parameters to Firestore REST value mappings
         fields = {}
@@ -41,8 +42,11 @@ class SimpleFirestoreRESTClient:
                 fields[k] = {"stringValue": str(v)}
                 
         payload = {"fields": fields}
-        response = requests.patch(url, json=payload)
+        
+        # POST is required by Google when using the documentId query parameter to create records
+        response = requests.post(url, json=payload)
         return response.ok
+
 
     def get(self):
         """Fetches a document from Firestore REST API."""
