@@ -29,12 +29,23 @@ with st.form("signup_form", clear_on_submit=False):
     # Compulsory Selection Elements
     gender = st.selectbox("Gender *", options=["", "Male", "Female"])
     
-    # 18+ Age Constraint Calculation Strategy
+    # =====================================================================
+    # FIXED BIRTHDATE DATE CONFIGURATION: BOUNDS EXTENDED FROM YEAR 1900
+    # =====================================================================
     max_birth_year = date.today().year - 18
     default_birth_date = date(max_birth_year, date.today().month, date.today().day)
-    birth_date = st.date_input("Date of Birth *", value=default_birth_date)
+    min_birth_date = date(1900, 1, 1) # Sets the structural calendar floor
+    
+    # Injected min_value constraint allows historical year selection loops
+    birth_date = st.date_input(
+        "Date of Birth *", 
+        value=default_birth_date,
+        min_value=min_birth_date,
+        max_value=date.today()
+    )
     
     bank_name = st.selectbox("Bank Name *", options=[""] + MALAYSIA_BANKS)
+
     bank_account = st.text_input("Bank Account Number *")
     
     st.markdown("---")
