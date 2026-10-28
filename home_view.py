@@ -100,13 +100,14 @@ def render_profile_view():
                     st.write(f"**Sponsor ID:** {profile.get('upline_id', 'Direct Entry')}")
                     st.write(f"**Sponsor Name:** {profile.get('upline_name', 'N/A')}")
                 else:
-                    st.warning("⚠️ No upline linked. Fill this out before buying 6 bottles to qualify for rewards.")
+                    st.warning("⚠️ No upline linked. Link a sponsor before buying 6 bottles to qualify for your free reward.")
                     with st.form("link_upline_form"):
+                        st.info("💡 **Instructions:** To claim your 1-time reward, you only need to fill in **either** the Upline ID **OR** the Upline Phone Number below.")
                         up_id = st.text_input("Sponsor Upline ID")
                         up_phone = st.text_input("Sponsor Upline Phone")
-                        up_name = st.text_input("Sponsor Upline Name")
+                        up_name = st.text_input("Sponsor Upline Name (Optional)")
                         save_up = st.form_submit_button("Verify & Link Sponsor")
-                        
+
                         if save_up:
                             from database import verify_upline
                             is_valid, conf_id = verify_upline(up_id, up_phone)
