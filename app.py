@@ -72,7 +72,7 @@ def calculate_price(qty):
         price_per_bottle = 148  # Safeguard enforcement fallback value
         
     return price_per_bottle, qty * price_per_bottle
-=====================================================================
+#=====================================================================
 # 4. RENDER SYSTEM PORTAL: SECURE SIGN-IN & REGISTRATION
 # =============================================================================
 def render_auth_portal():
