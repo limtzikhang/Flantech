@@ -16,7 +16,7 @@ from database import verify_upline, handle_successful_payment, db
 
 
 # =====================================================================
-# GLOBAL SESSION TRACKING CONFIGURES
+# GLOBAL SESSION TRACKING ARCHITECTURE
 # =====================================================================
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
@@ -25,30 +25,48 @@ if "user_id" not in st.session_state:
 if "is_admin" not in st.session_state:
     st.session_state.is_admin = False
 
+# Complete drop-down option dataset for Malaysian Banks
 MALAYSIA_BANKS = [
-    "Maybank (Malayan Banking Berhad)", "CIMB Bank", "Public Bank", "RHB Bank", 
-    "Hong Leong Bank", "AmBank", "UOB Malaysia", "Alliance Bank", "Affin Bank", 
-    "Bank Islam Malaysia", "Bank Rakyat", "Bank Simpanan Nasional (BSN)", "OCBC Bank Malaysia", 
-    "Standard Chartered Malaysia", "HSBC Bank Malaysia", "GXBank", "Boost Bank", "AEON Bank"
+    "Maybank (Malayan Banking Berhad)", 
+    "CIMB Bank", 
+    "Public Bank", 
+    "RHB Bank", 
+    "Hong Leong Bank", 
+    "AmBank", 
+    "UOB Malaysia", 
+    "Alliance Bank", 
+    "Affin Bank", 
+    "Bank Islam Malaysia", 
+    "Bank Rakyat", 
+    "Bank Simpanan Nasional (BSN)", 
+    "OCBC Bank Malaysia", 
+    "Standard Chartered Malaysia", 
+    "HSBC Bank Malaysia", 
+    "GXBank", 
+    "Boost Bank", 
+    "AEON Bank"
 ]
 
 # =====================================================================
-# CORE APP FUNCTIONS
+# SYSTEM UTILITIES
 # =====================================================================
 def generate_member_id() -> str:
+    """Generates a unique professional ID format like FT-20261028-XY7"""
     date_str = time.strftime("%Y%m%d")
     random_suffix = "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=3))
     return f"FT-{date_str}-{random_suffix}"
 
 def render_login_page():
-    st.title("Sign In")
+    st.title("🔐 Sign In")
+    st.markdown("Access your Flantech affiliate network portal.")
+    
     with st.form("login_form"):
         username = st.text_input("Username (Email or Admin Phone)").strip()
         input_password = st.text_input("Password", type="password")
-        login_btn = st.form_submit_button("Login")
+        login_btn = st.form_submit_button("Login to Account")
         
         if login_btn:
-            # Check for Admin credentials
+            # 1. Intercept Master Administration Credentials
             if username == "60164191861" and input_password == "admin":
                 st.session_state.logged_in = True
                 st.session_state.is_admin = True
@@ -56,13 +74,14 @@ def render_login_page():
                 st.success("Welcome back, Master Admin!")
                 time.sleep(0.5)
                 st.rerun()
+            # 2. Process Standard Customer/Agent Authentication Lookups
             else:
                 users_query = db.collection("users").where("email", "==", username.lower()).limit(1).stream()
                 user_found = None
                 for doc in users_query:
                     user_found = doc.to_dict()
                     
-                if user_found and input_password == "123456":  # Mock password
+                if user_found and input_password == "123456":  # Fallback system mock key
                     st.session_state.logged_in = True
                     st.session_state.is_admin = False
                     st.session_state.user_id = user_found["member_id"]
@@ -70,52 +89,56 @@ def render_login_page():
                     time.sleep(0.5)
                     st.rerun()
                 else:
-                    st.error("Invalid credentials or user does not exist.")
+                    st.error("Invalid credentials or user record does not exist.")
 
 def render_signup_page():
-    st.title("Create an Account")
+    st.title("📝 Create a New Account")
+    st.markdown("Mandatory information fields are required for centralized delivery logistics validation.")
+    
     with st.form("signup_form"):
         email = st.text_input("Email Address *")
-        phone = st.text_input("Mobile Phone Number *")
-        full_name = st.text_input("Full Name (as per MyKad) *")
+        phone = st.text_input("Mobile Phone Number * (e.g. +60123456789)")
+        full_name = st.text_input("Full Name (as per MyKad/IC) *")
         gender = st.selectbox("Gender *", options=["", "Male", "Female"])
         
+        # Enforce Age Minimum Constraint (18+ validation threshold layout)
         max_birth_year = date.today().year - 18
         default_birth_date = date(max_birth_year, date.today().month, date.today().day)
         birth_date = st.date_input("Date of Birth *", value=default_birth_date)
         
+        # Centralized Banking Settlement Inputs
         bank_name = st.selectbox("Bank Name *", options=[""] + MALAYSIA_BANKS)
         bank_account = st.text_input("Bank Account Number *")
         
         st.markdown("---")
+        st.subheader("Sponsor / Referral Details (Optional)")
         upline_id = st.text_input("Upline ID")
         upline_phone = st.text_input("Upline Phone Number")
         upline_name = st.text_input("Upline Name (Optional)")
-        
-        submit_button = st.form_submit_button("Register Now")
+        submit_button = st.form_submit_button("Complete Registration")
         
         if submit_button:
+            # Step 1: Compulsory Parameter Checks
             if not email or not phone or not full_name or not bank_account or not gender or not bank_name:
-                st.error("Please fill in all mandatory fields.")
+                st.error("Please fill in all fields marked with an asterisk (*).")
                 return
 
+            # Step 2: Strict 18-Year Age Block
             today = date.today()
             age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
             if age < 18:
-                st.error("Registration failed: You must be at least 18 years old to join.")
+                st.error("Registration denied: You must be at least 18 years old to join.")
                 return
             
+            # Step 3: Verify Upline Hierarchy Chain Info
             is_valid_upline, confirmed_upline_id = verify_upline(upline_id, upline_phone)
             if not is_valid_upline:
                 st.error(confirmed_upline_id)
                 return
 
+            # Step 4: Write Record Mapping Matrix to Firestore Registry
             try:
                 new_member_id = generate_member_id()
-                
-                # =================================================================
-                # CODE CHANGES FOR STEP 3: Add "free_gift_claimed" line at the bottom
-                # =================================================================
                 user_data = {
                     "member_id": new_member_id,
                     "email": email.strip().lower(),
@@ -130,33 +153,65 @@ def render_signup_page():
                     "upline_name": upline_name.strip() if upline_name else "",
                     "upline_locked": True if confirmed_upline_id else False,
                     "first_purchase_time": "No buy history",
-                    "free_gift_claimed": False  # <-- PASTE THIS LINE HERE
+                    "free_gift_claimed": False  # Initialized eligibility state
                 }
                 db.collection("users").document(new_member_id).set(user_data)
                 st.success(f"Registered! Your Member ID is: **{new_member_id}**")
-_id}**")
             except Exception as e:
-                st.error(f"Error during registration: {str(e)}")
+                st.error(f"Database error during transaction execution: {str(e)}")
 
 def render_account_profile_page():
-    st.title("My Profile Dashboard")
+    st.title("👤 My Account Profile")
+    
     user_ref = db.collection("users").document(st.session_state.user_id)
     user_doc = user_ref.get()
     
     if not user_doc.exists:
-        st.error("Profile records missing.")
+        st.error("Unable to query active session details.")
         return
         
     user_profile = user_doc.to_dict()
-    st.write(f"**Member ID:** {user_profile['member_id']}")
+    st.write(f"**Member ID:** `{user_profile['member_id']}`")
     st.write(f"**Full Name:** {user_profile['full_name']}")
+    st.write(f"**Linked Bank:** {user_profile['bank_name']} ({user_profile['bank_account']})")
+    st.markdown("---")
+    st.subheader("Hierarchy Management")
     
-    st.markdown("### Order History Baseline")
+    # Check if user already has an active sponsor assigned
+    if user_profile.get("upline_locked"):
+        st.info("🔒 Your network sponsor tier is verified and permanently linked.")
+        st.write(f"**Sponsor ID:** {user_profile.get('upline_id', 'Direct')}")
+        st.write(f"**Sponsor Name:** {user_profile.get('upline_name', 'N/A')}")
+    else:
+        st.warning("⚠️ No upline linked. Fill this out before buying 6 bottles to qualify for rewards.")
+        with st.form("link_upline_form"):
+            up_id = st.text_input("Sponsor Upline ID")
+            up_phone = st.text_input("Sponsor Upline Phone")
+            up_name = st.text_input("Sponsor Upline Name")
+            save_up = st.form_submit_button("Verify & Link Sponsor")
+            
+            if save_up:
+                is_valid, conf_id = verify_upline(up_id, up_phone)
+                if is_valid:
+                    user_ref.update({
+                        "upline_id": conf_id,
+                        "upline_phone": up_phone.strip(),
+                        "upline_name": up_name.strip(),
+                        "upline_locked": True
+                    })
+                    st.success("Sponsor linked successfully!")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.error(conf_id)
+
+    st.markdown("---")
+    st.subheader("📅 Purchase Conversion Tracker")
     purchase_time = user_profile.get("first_purchase_time", "No buy history")
     if purchase_time == "No buy history":
         st.warning("Status: 🛒 No buy history found for this account.")
     else:
-        st.success(f"🗓️ **First Purchase Date & Time (Locked):** {purchase_time}")
+        st.success(f"Confirmed First Purchase: **{purchase_time}**")
         
     if st.button("Log Out"):
         st.session_state.logged_in = False
@@ -165,47 +220,103 @@ def render_account_profile_page():
         st.rerun()
 
 def render_checkout_flow():
-    st.title("🛒 Product Checkout")
-    account_type = st.radio("Select Account Type", ["Consumer (B2C)", "Business Agent (B2B)"])
-    qty = st.number_input("Enter Bottle Quantity", min_value=1, value=1, step=1)
+    st.title("🛒 Product Checkout Store")
     
-    if account_type == "Consumer (B2C)":
+    upline_sponsor = ""
+    sponsor_name = ""
+    has_claimed_free_gift = False
+
+    try:
+        user_doc = db.collection("users").document(st.session_state.user_id).get()
+        if user_doc.exists:
+            profile_data = user_doc.to_dict()
+            upline_sponsor = profile_data.get("upline_id", "")
+            sponsor_name = profile_data.get("upline_name", "Unknown")
+            has_claimed_free_gift = profile_data.get("free_gift_claimed", False)
+    except Exception:
+        pass
+    account_type = st.radio("Select Pricing Tier", ["Consumer (B2C Standard)", "Business Agent (B2B Bulk)"])
+    qty = st.number_input("Enter Bottle Quantity", min_value=1, max_value=50, value=1, step=1)
+    
+    if account_type == "Consumer (B2C Standard)":
         pricing = calculate_b2c_price(qty)
     else:
         pricing = calculate_b2b_price(qty)
         
-    st.write(f"**Price Per Unit:** RM {pricing['price_per_unit']}")
-    st.subheader(f"**Total Amount Due:** RM {pricing['total_price']}")
+    # PROCESS ONE-TIME REGISTRATION INTRODUCTORY REWARD LOGIC
+    is_eligible_for_free_gift = False
+    if qty == 6:
+        if has_claimed_free_gift:
+            st.info("ℹ️ Note: You have already claimed your 1-time introductory free bottle registration gift on a previous order.")
+        elif upline_sponsor != "":
+            st.success(f"🎁 **First Time Registration Reward:** 1 FREE Bottle will be added under Upline Sponsor **{sponsor_name} ({upline_sponsor})**!")
+            is_eligible_for_free_gift = True
+        else:
+            st.warning("⚠️ **Missed a Free Bottle?** You are ordering 6 bottles, but you haven't linked a sponsor to your profile yet. Link your Upline in your dashboard before paying to claim your introductory free reward!")
+
+    st.markdown("---")
+    c1, c2 = st.columns(2)
+    c1.metric("Price Per Unit", f"RM {pricing['price_per_unit']:.2f}")
+    c2.metric("Total Amount Payable", f"RM {pricing['total_price']:,.2f}")
     
+    if is_eligible_for_free_gift:
+        st.caption("📦 Shipment Manifest: 6 Paid Units + 1 One-Time Registration Reward = **7 Total Bottles to Ship**")
+    else:
+        st.caption(f"📦 Shipment Manifest: **{qty} Total Bottles to Ship**")
+
     if st.button("Proceed to FPX Bank Payment"):
-        st.warning("🔄 Redirecting securely to local Malaysia Bank Transfer gateway...")
+        if qty < 50 and account_type == "Business Agent (B2B Bulk)":
+            st.error("Payment Denied: Wholesale B2B pricing requires a minimum configuration selection threshold of 50 bottles.")
+            return
+            
+        st.warning("🔄 Connecting securely to local FPX payment clearing gateway...")
         time.sleep(1.0)
         handle_successful_payment(st.session_state.user_id, qty, pricing['total_price'])
-        st.success("✅ Payment Authorized Successfully! Order Record Created.")
+        st.success("✅ Payment Authorized! Order parameters broadcasted to central warehousing log.")
 
 def render_admin_dashboard():
     st.title("🛡️ Enterprise Admin Control Center")
     try:
         users_ref = db.collection("users").stream()
         orders_ref = db.collection("orders").stream()
-        
         all_users = [u.to_dict() for u in users_ref]
         all_orders = [o.to_dict() for o in orders_ref]
         
         col1, col2, col3 = st.columns(3)
         col1.metric("Registered Members", len(all_users))
         col2.metric("Orders Completed", len(all_orders))
-        
         total_rev = sum(float(o.get("total_amount", 0)) for o in all_orders if o.get("payment_status") == "Paid")
-        col3.metric("Total Revenue", f"RM {total_rev:,.2f}")
-        
-        st.subheader("👥 Registered Member Directory")
+        col3.metric("Total Corporate Revenue", f"RM {total_rev:,.2f}")
+        st.subheader("👥 Live Member Database")
         st.dataframe(all_users, use_container_width=True)
+        
+        st.subheader("📦 Central Packing & Warehouse Delivery Ledger")
+        audit_records = []
+        for o in all_orders:
+            gift_count = o.get("free_bottles_gift", 0)
+            upline = o.get("upline_sponsor_snapshot", "")
+            
+            note_str = "Standard Delivery"
+            if gift_count > 0:
+                note_str = f"🎁 Includes 1-Time Free Gift Sign-Up under Upline: {upline}"
+                
+            audit_records.append({
+                "Order ID": o.get("order_id"),
+                "Buyer ID": o.get("member_id"),
+                "Paid Qty": o.get("quantity_purchased"),
+                "Gift Qty": gift_count,
+                "Total Ship Units": o.get("total_delivery_units"),
+                "Amount": f"RM {float(o.get('total_amount', 0)):.2f}",
+                "Fulfillment Note": note_str,
+                "Timestamp": o.get("timestamp")
+            })
+        st.dataframe(audit_records, use_container_width=True)
+        
     except Exception as e:
-        st.error(f"Could not load admin metrics: {str(e)}")
+        st.error(f"Could not load admin workspace parameters: {str(e)}")
 
 # =====================================================================
-# BOTTOM OF FILE: DYNAMIC NAVIGATION ROUTER BLOCK
+# SYSTEM APPLICATION CONTROLLER / ROUTER
 # =====================================================================
 if not st.session_state.logged_in:
     page_selection = st.sidebar.radio("Navigation", ["Login", "Sign Up Form"])

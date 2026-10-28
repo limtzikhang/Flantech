@@ -49,22 +49,24 @@ def handle_successful_payment(user_id: str, quantity: int, total_price: float):
         upline_linked = profile.get("upline_id", "")
         buyer_name = profile.get("full_name", "Customer")
         
-        # ONE-TIME REWARD CHECK: Must be 6 bottles, must have an upline, and must NOT have claimed it before
+        # ====================================================================
+        # ONE-TIME REWARD CHECK BLOCK
+        # ====================================================================
         has_claimed_before = profile.get("free_gift_claimed", False)
         
         if quantity == 6 and upline_linked != "" and not has_claimed_before:
             free_bottles_reward = 1
-            # Mark the reward as used inside the user's permanent record
+            # Permanently update the flag so they can never abuse the promo slot
             user_ref.update({"free_gift_claimed": True})
             
-            # Fetch sponsor's contact info for the notification network framework
+            # Retrieve sponsor's profile numbers for network notifications
             sponsor_doc = db.collection("users").document(upline_linked).get()
             if sponsor_doc.exists:
                 s_prof = sponsor_doc.to_dict()
                 sponsor_phone = s_prof.get("phone", "")
                 sponsor_name = s_prof.get("full_name", "")
 
-    # 1. Log the receipt metadata to Firestore for corporate delivery fulfillment
+    # 1. Log receipt manifest metadata down into Firestore
     db.collection("orders").document(order_id).set({
         "order_id": order_id,
         "member_id": user_id,
@@ -77,12 +79,14 @@ def handle_successful_payment(user_id: str, quantity: int, total_price: float):
         "timestamp": current_time_str
     })
     
-    # 2. Lock the user's first-time buyer historical timestamp if empty
+    # 2. Lock their conversion milestone timestamp if empty
     if user_doc.exists and user_doc.to_dict().get("first_purchase_time") == "No buy history":
         user_ref.update({"first_purchase_time": current_time_str})
         
-    # 3. TRIGGER SMS / EMAIL NOTIFICATION FRAMEWORK
-    if free_bottles_reward > 1 or upline_linked != "":
+    # ====================================================================
+    # TRIGGER SYSTEM NOTIFICATION TRACKER
+    # ====================================================================
+    if upline_linked != "":
         trigger_sponsor_alert_notification(
             sponsor_name=sponsor_name,
             sponsor_phone=sponsor_phone,
@@ -90,6 +94,7 @@ def handle_successful_payment(user_id: str, quantity: int, total_price: float):
             quantity=quantity,
             gift_awarded=free_bottles_reward
         )
+
 
 def trigger_sponsor_alert_notification(sponsor_name: str, sponsor_phone: str, buyer_name: str, quantity: int, gift_awarded: int):
     """
@@ -108,4 +113,26 @@ def trigger_sponsor_alert_notification(sponsor_name: str, sponsor_phone: str, bu
         sms_message += "Thank you for building your network distribution footprint."
         
     # Visual simulation container display on front-end
+    st.info(f"📱 **Mock SMS sent to Sponsor ({sponsor_phone}):**\n\n*{sms_message}*")
+
+# =====================================================================
+# BOTTOM OF DATABASE.PY: CENTRAL NOTIFICATION TRACKER SYSTEM
+# =====================================================================
+def trigger_sponsor_alert_notification(sponsor_name: str, sponsor_phone: str, buyer_name: str, quantity: int, gift_awarded: int):
+    """
+    Simulates sending local Malaysian network server alerts via API (like Infobip or Gateway).
+    """
+    import streamlit as st
+    st.markdown("---")
+    st.subheader("📡 Central Notification Tracker System")
+    
+    sms_message = (
+        f"Flantech Alert: Hello {sponsor_name}! Your sponsored customer {buyer_name} "
+        f"has just placed a successful order of {quantity} bottles. "
+    )
+    if gift_awarded > 0:
+        sms_message += "🎁 1 Introductory Free Bottle reward has been auto-dispatched to them!"
+    else:
+        sms_message += "Thank you for building your network distribution footprint."
+        
     st.info(f"📱 **Mock SMS sent to Sponsor ({sponsor_phone}):**\n\n*{sms_message}*")
