@@ -203,9 +203,16 @@ def render_auth_portal():
                 return
                 
             try:
+                # 1. Pull the key string safely from your Streamlit dashboard secrets
                 api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
-                api_url = "https://googleapis.com"
-                params = {"key": api_key}
+                
+                # =============================================================
+                # EXPLICIT PATH FIX: We weld the key directly onto the URL query string
+                # This ensures the remote server receives an immutable request path
+                # =============================================================
+                api_url = f"https://googleapis.com{api_key}"
+                update_url = f"https://googleapis.com{api_key}"
+                
                 headers = {"Content-Type": "application/json"}
                 payload = {
                     "email": new_email,
@@ -213,8 +220,10 @@ def render_auth_portal():
                     "returnSecureToken": True
                 }
                 
-                response = requests.post(api_url, params=params, json=payload, headers=headers, timeout=10)
+                # Dispatch the secure post execution sequence without separate parameters dicts
+                response = requests.post(api_url, json=payload, headers=headers, timeout=10)
                 
+                # SAFETY GUARD: Intercept HTML block pages cleanly before JSON parsing triggers
                 if response.status_code != 200:
                     st.error(f"🚨 Google Server Rejection (HTTP {response.status_code})")
                     st.markdown(f"**Error Details:** `{response.text[:200]}`")
@@ -223,9 +232,8 @@ def render_auth_portal():
                 res_data = response.json()
                 new_uid = res_data["localId"]
                 
-                # Update display name profile properties cleanly via structural API values
-                update_url = "https://googleapis.com"
-                requests.post(update_url, params=params, json={
+                # Explicit update profile name parameters mapping using the query URL string
+                requests.post(update_url, json={
                     "idToken": res_data["idToken"],
                     "displayName": new_name,
                     "returnSecureToken": True
@@ -253,6 +261,7 @@ def render_auth_portal():
                 
             except Exception as system_err:
                 st.error(f"Enrolment halted by system validation server: {system_err}")
+
 # =============================================================================
 # 6. RENDER STORE SYSTEM PLATFORM (PRODUCT PANELS & SHOPPING CART)
 # =============================================================================
