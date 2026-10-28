@@ -5,8 +5,12 @@ import json
 import time
 from datetime import datetime
 
+# database.py - Update the absolute URL configuration at the top
 PROJECT_ID = "flantech-asia"
+
+# FIXED BASE_URL PATH STRUCTURE:
 BASE_URL = f"https://googleapis.com{PROJECT_ID}/databases/(default)/documents"
+
 
 class SimpleFirestoreRESTClient:
     """
