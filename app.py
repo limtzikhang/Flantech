@@ -60,48 +60,73 @@ def render_login_page():
     st.title("🔐 Sign In")
     st.markdown("Access your Flantech affiliate network portal.")
     
-    with st.form("login_form"):
-        username = st.text_input("Username (Email or Admin Phone)").strip()
-        input_password = st.text_input("Password", type="password")
-        login_btn = st.form_submit_button("Login to Account")
+    # 1. Initialize persistent input memory inside session states if missing
+    if "input_user" not in st.session_state:
+        st.session_state.input_user = ""
+    if "input_pass" not in st.session_state:
+        st.session_state.input_pass = ""
+
+    # 2. Use values anchored to session memory so Streamlit can't wipe them on refresh
+    username = st.text_input("Username (Email or Admin Phone)", value=st.session_state.input_user)
+    input_password = st.text_input("Password", type="password", value=st.session_state.input_pass)
+    
+    login_btn = st.button("Login to Account")
+    
+    if login_btn:
+        # Save current typing values immediately to avoid loop dropouts
+        st.session_state.input_user = username
+        st.session_state.input_pass = input_password
+
+        # Clean and sanitize structural spaces or country code variations
+        cleaned_username = username.replace("+", "").replace(" ", "").strip()
+        cleaned_password = input_password.strip()
         
-        if login_btn:
-            # Clean and sanitize the input strings entirely
-            cleaned_username = username.replace("+", "").replace(" ", "").strip()
-            cleaned_password = input_password.strip()
+        if not cleaned_username or not cleaned_password:
+            st.error("Please fill in your login credentials.")
+            return
+
+        # ====================================================================
+        # IMMUTABLE HARDCODED ADMIN GATEWAY RULE
+        # ====================================================================
+        if cleaned_username == "60164191861" and cleaned_password == "admin":
+            st.session_state.logged_in = True
+            st.session_state.is_admin = True
+            st.session_state.user_id = "ADMIN-USER"
             
-            # ====================================================================
-            # 1. FIXED ADMIN GATEWAY (CRITICAL LOGIC BLOCK)
-            # ====================================================================
-            if cleaned_username == "60164191861" and cleaned_password == "admin":
-                st.session_state.logged_in = True
-                st.session_state.is_admin = True
-                st.session_state.user_id = "ADMIN-USER"
-                st.success("Welcome back, Master Admin!")
-                time.sleep(0.5)
-                st.rerun()
-                
-            # ====================================================================
-            # 2. REGULAR USER LOOKUP (ONLY RUNS IF NOT ADMIN)
-            # ====================================================================
-            else:
-                try:
-                    users_query = db.collection("users").where("email", "==", cleaned_username.lower()).limit(1).stream()
-                    user_found = None
-                    for doc in users_query:
-                        user_found = doc.to_dict()
-                        
-                    if user_found and cleaned_password == "123456":
-                        st.session_state.logged_in = True
-                        st.session_state.is_admin = False
-                        st.session_state.user_id = user_found["member_id"]
-                        st.success("Successfully logged in!")
-                        time.sleep(0.5)
-                        st.rerun()
-                    else:
-                        st.error("Invalid credentials or user record does not exist.")
-                except Exception as e:
-                    st.error(f"System Error: {str(e)}")
+            # Clear text fields memory so it stays safe upon eventual logout
+            st.session_state.input_user = ""
+            st.session_state.input_pass = ""
+            
+            st.success("Welcome back, Master Admin!")
+            time.sleep(0.5)
+            st.rerun()
+            return
+            
+        # ====================================================================
+        # STANDARD CONSUMER CUSTOMER BACKEND QUERY
+        # ====================================================================
+        else:
+            try:
+                users_query = db.collection("users").where("email", "==", cleaned_username.lower()).limit(1).stream()
+                user_found = None
+                for doc in users_query:
+                    user_found = doc.to_dict()
+                    
+                if user_found and cleaned_password == "123456":
+                    st.session_state.logged_in = True
+                    st.session_state.is_admin = False
+                    st.session_state.user_id = user_found["member_id"]
+                    
+                    st.session_state.input_user = ""
+                    st.session_state.input_pass = ""
+                    
+                    st.success("Successfully logged in!")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.error("Invalid credentials provided.")
+            except Exception as e:
+                st.error(f"System Network Error: {str(e)}")
 
 
 
