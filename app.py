@@ -141,7 +141,6 @@ def render_auth_portal():
                 if user_ref.exists:
                     user_profile = user_ref.to_dict()
                     
-                    # Force update the field role to admin in Firestore securely if missing
                     if is_admin_uid and user_profile.get("role") != "admin":
                         db.collection("users").document(user_auth_record.uid).update({"role": "admin"})
                         user_profile["role"] = "admin"
@@ -154,7 +153,6 @@ def render_auth_portal():
                     st.success(f"Access granted. Welcome {st.session_state.user_name}")
                     st.rerun()
                 else:
-                    # Database self-healing block: Build the admin record if missing from Firestore
                     assigned_role = "admin" if is_admin_uid else "b2c"
                     structured_payload = {
                         "uid": user_auth_record.uid,
@@ -203,15 +201,9 @@ def render_auth_portal():
                 return
                 
             try:
-                # 1. Pull the key string safely from your Streamlit dashboard secrets
-                api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
-                
-                # =============================================================
-                # EXPLICIT PATH FIX: We weld the key directly onto the URL query string
-                # This ensures the remote server receives an immutable request path
-                # =============================================================
-                api_url = f"https://googleapis.com{api_key}"
-                update_url = f"https://googleapis.com{api_key}"
+                # FIXED: Absolute URL endpoints hardcoded to prevent name resolution crashes
+                api_url = "https://googleapis.com"
+                update_url = "https://googleapis.com"
                 
                 headers = {"Content-Type": "application/json"}
                 payload = {
@@ -220,10 +212,8 @@ def render_auth_portal():
                     "returnSecureToken": True
                 }
                 
-                # Dispatch the secure post execution sequence without separate parameters dicts
                 response = requests.post(api_url, json=payload, headers=headers, timeout=10)
                 
-                # SAFETY GUARD: Intercept HTML block pages cleanly before JSON parsing triggers
                 if response.status_code != 200:
                     st.error(f"🚨 Google Server Rejection (HTTP {response.status_code})")
                     st.markdown(f"**Error Details:** `{response.text[:200]}`")
@@ -232,14 +222,12 @@ def render_auth_portal():
                 res_data = response.json()
                 new_uid = res_data["localId"]
                 
-                # Explicit update profile name parameters mapping using the query URL string
                 requests.post(update_url, json={
                     "idToken": res_data["idToken"],
                     "displayName": new_name,
                     "returnSecureToken": True
                 }, headers=headers, timeout=10)
                 
-                # Check for admin UID match during structural signup
                 assigned_role = "admin" if new_uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1" else "b2c"
                 
                 structured_payload = {
@@ -261,7 +249,6 @@ def render_auth_portal():
                 
             except Exception as system_err:
                 st.error(f"Enrolment halted by system validation server: {system_err}")
-
 # =============================================================================
 # 6. RENDER STORE SYSTEM PLATFORM (PRODUCT PANELS & SHOPPING CART)
 # =============================================================================
