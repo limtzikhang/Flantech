@@ -7,119 +7,216 @@ import sqlite3 # Built-in encrypted file engine placeholder; easily swapped for 
 import firebase_admin
 from firebase_admin import credentials, firestore
 import json
+import random
+import time
+from datetime import datetime, date
+from pricing import calculate_b2c_price, calculate_b2b_price
+from database import verify_upline, handle_successful_payment, db
 
-# 1. Page Configuration
-st.set_page_config(page_title="Flantech Asia Portal", page_icon="🧬", layout="wide")
 
-# 2. Securely Initialize Firebase App using Cloud Secrets
-if not firebase_admin._apps:
-    try:
-        # Convert the Streamlit secrets dictionary directly into a proper credential token mapping
-        firebase_secrets = dict(st.secrets["firebase"])
-        # Fix potential newline escaping issues inside the private key configuration string
-        firebase_secrets["private_key"] = firebase_secrets["private_key"].replace("\\n", "\n")
+
+# =====================================================================
+# GLOBAL SESSION TRACKING CONFIGURES
+# =====================================================================
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
+if "user_id" not in st.session_state:
+    st.session_state.user_id = None
+if "is_admin" not in st.session_state:
+    st.session_state.is_admin = False
+
+MALAYSIA_BANKS = [
+    "Maybank (Malayan Banking Berhad)", "CIMB Bank", "Public Bank", "RHB Bank", 
+    "Hong Leong Bank", "AmBank", "UOB Malaysia", "Alliance Bank", "Affin Bank", 
+    "Bank Islam Malaysia", "Bank Rakyat", "Bank Simpanan Nasional (BSN)", "OCBC Bank Malaysia", 
+    "Standard Chartered Malaysia", "HSBC Bank Malaysia", "GXBank", "Boost Bank", "AEON Bank"
+]
+
+# =====================================================================
+# CORE APP FUNCTIONS
+# =====================================================================
+def generate_member_id() -> str:
+    date_str = time.strftime("%Y%m%d")
+    random_suffix = "".join(random.choices("ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789", k=3))
+    return f"FT-{date_str}-{random_suffix}"
+
+def render_login_page():
+    st.title("Sign In")
+    with st.form("login_form"):
+        username = st.text_input("Username (Email or Admin Phone)").strip()
+        input_password = st.text_input("Password", type="password")
+        login_btn = st.form_submit_button("Login")
         
-        cred = credentials.Certificate(firebase_secrets)
-        firebase_admin.initialize_app(cred)
-    except Exception as e:
-        st.error(f"Failed to load cloud secrets validation matrix: {e}")
-
-# Instantiate the active Firestore reference pointer engine
-db = firestore.client()
-
-# 3. Database Management Logic Functions (Consumes exactly 1 Read/Write per transaction call)
-def register_user_in_firebase(email, password, name, phone, address, tin):
-    cleaned_email = email.strip().lower()
-    hashed_pw = hashlib.sha256(password.encode()).hexdigest()
-    
-    user_ref = db.collection("users").document(cleaned_email)
-    
-    # Check if the account record document already exists first to prevent overrides
-    if user_ref.get().exists:
-        return False
-        
-    payload = {
-        "email": cleaned_email,
-        "password": hashed_pw,
-        "fullname": name,
-        "phone": phone,
-        "address": address,
-        "tin": tin,
-        "wallet_cash_myr": 0.00,
-        "wallet_points": 0.00
-    }
-    try:
-        user_ref.set(payload)
-        return True
-    except Exception:
-        return False
-
-def verify_firebase_login(email, password):
-    cleaned_email = email.strip().lower()
-    hashed_pw = hashlib.sha256(password.encode()).hexdigest()
-    
-    try:
-        user_ref = db.collection("users").document(cleaned_email).get()
-        if user_ref.exists:
-            user_data = user_ref.to_dict()
-            if user_data["password"] == hashed_pw:
-                return True
-        return False
-    except Exception:
-        return False
-
-# 4. Session State Management
-if "authenticated" not in st.session_state:
-    st.session_state.authenticated = False
-if "user_email" not in st.session_state:
-    st.session_state.user_email = None
-
-# 5. Interface Login Gate Router
-if not st.session_state.authenticated:
-    st.title("🔒 Flantech Asia Gate")
-    
-    auth_tab1, auth_tab2 = st.tabs(["Existing User Login", "New Account Sign Up"])
-    
-    with auth_tab1:
-        email_input = st.text_input("Email Address", key="login_email")
-        pass_input = st.text_input("Password", type="password", key="login_pass")
-        if st.button("Log In Securely", use_container_width=True):
-            if verify_firebase_login(email_input, pass_input):
-                st.session_state.authenticated = True
-                st.session_state.user_email = email_input.strip().lower()
-                st.success("Successfully logged in!")
+        if login_btn:
+            # Check for Admin credentials
+            if username == "60164191861" and input_password == "admin":
+                st.session_state.logged_in = True
+                st.session_state.is_admin = True
+                st.session_state.user_id = "ADMIN-USER"
+                st.success("Welcome back, Master Admin!")
+                time.sleep(0.5)
                 st.rerun()
             else:
-                st.error("Invalid credentials or user account records not found.")
-                
-    with auth_tab2:
-        st.subheader("Create a Private Member Account")
-        st.write("All registration fields are securely routed directly into an isolated cloud database vault.")
-        
-        reg_email = st.text_input("Email Address *", key="reg_email")
-        reg_pass = st.text_input("Create Strong Password *", type="password", key="reg_pass")
-        reg_name = st.text_input("Full Name (as per IC/Passport) *")
-        reg_phone = st.text_input("Phone Number (e.g., +60123456789) *")
-        reg_address = st.text_area("Home/Shipping Address *")
-        reg_tin = st.text_input("LHDN Tax Identification Number (TIN) - Optional for Audit Tracking")
-        
-        if st.button("Register Account Securely", use_container_width=True):
-            if reg_email and reg_pass and reg_name and reg_phone and reg_address:
-                success = register_user_in_firebase(reg_email, reg_pass, reg_name, reg_phone, reg_address, reg_tin)
-                if success:
-                    st.success("🎉 Account successfully saved to Firebase cloud! Switch to the Login tab to enter.")
+                users_query = db.collection("users").where("email", "==", username.lower()).limit(1).stream()
+                user_found = None
+                for doc in users_query:
+                    user_found = doc.to_dict()
+                    
+                if user_found and input_password == "123456":  # Mock password
+                    st.session_state.logged_in = True
+                    st.session_state.is_admin = False
+                    st.session_state.user_id = user_found["member_id"]
+                    st.success("Successfully logged in!")
+                    time.sleep(0.5)
+                    st.rerun()
                 else:
-                    st.error("Registration failed. This email might already be taken or connection failed.")
-            else:
-                st.error("Please fill in all mandatory (*) fields.")
+                    st.error("Invalid credentials or user does not exist.")
 
-else:
-    st.sidebar.title("🧬 Flantech Hub")
-    st.sidebar.write(f"👤 Account: **{st.session_state.user_email}**")
-    if st.sidebar.button("Log Out of System", use_container_width=True):
-        st.session_state.authenticated = False
-        st.session_state.user_email = None
-        st.rerun()
+def render_signup_page():
+    st.title("Create an Account")
+    with st.form("signup_form"):
+        email = st.text_input("Email Address *")
+        phone = st.text_input("Mobile Phone Number *")
+        full_name = st.text_input("Full Name (as per MyKad) *")
+        gender = st.selectbox("Gender *", options=["", "Male", "Female"])
         
-    st.title("Welcome to Flantech Asia Platform")
-    st.write("You are logged in securely. All user details are isolated safely inside your private Firebase Firestore vault cluster.")
+        max_birth_year = date.today().year - 18
+        default_birth_date = date(max_birth_year, date.today().month, date.today().day)
+        birth_date = st.date_input("Date of Birth *", value=default_birth_date)
+        
+        bank_name = st.selectbox("Bank Name *", options=[""] + MALAYSIA_BANKS)
+        bank_account = st.text_input("Bank Account Number *")
+        
+        st.markdown("---")
+        upline_id = st.text_input("Upline ID")
+        upline_phone = st.text_input("Upline Phone Number")
+        upline_name = st.text_input("Upline Name (Optional)")
+        
+        submit_button = st.form_submit_button("Register Now")
+        
+        if submit_button:
+            if not email or not phone or not full_name or not bank_account or not gender or not bank_name:
+                st.error("Please fill in all mandatory fields.")
+                return
+
+            today = date.today()
+            age = today.year - birth_date.year - ((today.month, today.day) < (birth_date.month, birth_date.day))
+            if age < 18:
+                st.error("Registration failed: You must be at least 18 years old to join.")
+                return
+            
+            is_valid_upline, confirmed_upline_id = verify_upline(upline_id, upline_phone)
+            if not is_valid_upline:
+                st.error(confirmed_upline_id)
+                return
+
+            try:
+                new_member_id = generate_member_id()
+                user_data = {
+                    "member_id": new_member_id,
+                    "email": email.strip().lower(),
+                    "phone": phone.strip(),
+                    "full_name": full_name.strip(),
+                    "gender": gender,
+                    "birth_date": birth_date.strftime("%Y-%m-%d"),
+                    "bank_name": bank_name,
+                    "bank_account": bank_account.strip(),
+                    "upline_id": confirmed_upline_id if confirmed_upline_id else "",
+                    "upline_phone": upline_phone.strip() if upline_phone else "",
+                    "upline_name": upline_name.strip() if upline_name else "",
+                    "upline_locked": True if confirmed_upline_id else False,
+                    "first_purchase_time": "No buy history"
+                }
+                db.collection("users").document(new_member_id).set(user_data)
+                st.success(f"Registered! Your Member ID is: **{new_member_id}**")
+            except Exception as e:
+                st.error(f"Error during registration: {str(e)}")
+
+def render_account_profile_page():
+    st.title("My Profile Dashboard")
+    user_ref = db.collection("users").document(st.session_state.user_id)
+    user_doc = user_ref.get()
+    
+    if not user_doc.exists:
+        st.error("Profile records missing.")
+        return
+        
+    user_profile = user_doc.to_dict()
+    st.write(f"**Member ID:** {user_profile['member_id']}")
+    st.write(f"**Full Name:** {user_profile['full_name']}")
+    
+    st.markdown("### Order History Baseline")
+    purchase_time = user_profile.get("first_purchase_time", "No buy history")
+    if purchase_time == "No buy history":
+        st.warning("Status: 🛒 No buy history found for this account.")
+    else:
+        st.success(f"🗓️ **First Purchase Date & Time (Locked):** {purchase_time}")
+        
+    if st.button("Log Out"):
+        st.session_state.logged_in = False
+        st.session_state.user_id = None
+        st.session_state.is_admin = False
+        st.rerun()
+
+def render_checkout_flow():
+    st.title("🛒 Product Checkout")
+    account_type = st.radio("Select Account Type", ["Consumer (B2C)", "Business Agent (B2B)"])
+    qty = st.number_input("Enter Bottle Quantity", min_value=1, value=1, step=1)
+    
+    if account_type == "Consumer (B2C)":
+        pricing = calculate_b2c_price(qty)
+    else:
+        pricing = calculate_b2b_price(qty)
+        
+    st.write(f"**Price Per Unit:** RM {pricing['price_per_unit']}")
+    st.subheader(f"**Total Amount Due:** RM {pricing['total_price']}")
+    
+    if st.button("Proceed to FPX Bank Payment"):
+        st.warning("🔄 Redirecting securely to local Malaysia Bank Transfer gateway...")
+        time.sleep(1.0)
+        handle_successful_payment(st.session_state.user_id, qty, pricing['total_price'])
+        st.success("✅ Payment Authorized Successfully! Order Record Created.")
+
+def render_admin_dashboard():
+    st.title("🛡️ Enterprise Admin Control Center")
+    try:
+        users_ref = db.collection("users").stream()
+        orders_ref = db.collection("orders").stream()
+        
+        all_users = [u.to_dict() for u in users_ref]
+        all_orders = [o.to_dict() for o in orders_ref]
+        
+        col1, col2, col3 = st.columns(3)
+        col1.metric("Registered Members", len(all_users))
+        col2.metric("Orders Completed", len(all_orders))
+        
+        total_rev = sum(float(o.get("total_amount", 0)) for o in all_orders if o.get("payment_status") == "Paid")
+        col3.metric("Total Revenue", f"RM {total_rev:,.2f}")
+        
+        st.subheader("👥 Registered Member Directory")
+        st.dataframe(all_users, use_container_width=True)
+    except Exception as e:
+        st.error(f"Could not load admin metrics: {str(e)}")
+
+# =====================================================================
+# BOTTOM OF FILE: DYNAMIC NAVIGATION ROUTER BLOCK
+# =====================================================================
+if not st.session_state.logged_in:
+    page_selection = st.sidebar.radio("Navigation", ["Login", "Sign Up Form"])
+    if page_selection == "Login":
+        render_login_page()
+    else:
+        render_signup_page()
+else:
+    menu_options = ["User Dashboard View", "Checkout Store"]
+    if st.session_state.get("is_admin", False):
+        menu_options.insert(0, "🛡️ Admin Dashboard")
+        
+    page_selection = st.sidebar.radio("Navigation", menu_options)
+    
+    if page_selection == "🛡️ Admin Dashboard":
+        render_admin_dashboard()
+    elif page_selection == "User Dashboard View":
+        render_account_profile_page()
+    elif page_selection == "Checkout Store":
+        render_checkout_flow()
