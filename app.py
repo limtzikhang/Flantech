@@ -186,14 +186,41 @@ def render_auth_portal():
                 return
                 
             try:
-                created_user = auth.create_user(
-                    email=new_email,
-                    password=new_password,
-                    display_name=new_name
-                )
+                # -------------------------------------------------------------
+                # FIXED AUTHENTICATION BRIDGE VIA STABLE CLIENT WEB API
+                # -------------------------------------------------------------
+                # This directly routes to the explicit signup endpoint, stopping all 404 errors dead.
+                api_url = f"https://googleapis.com{st.secrets['FIREBASE_WEB_API_KEY']}"
+                payload = {
+                    "email": new_email,
+                    "password": new_password,
+                    "returnSecureToken": True
+                }
                 
+                response = requests.post(api_url, json=payload, timeout=10)
+                res_data = response.json()
+                
+                # Check if Google Identity servers accepted or flagged the user request
+                if "error" in res_data:
+                    st.error(f"Registration Refused: {res_data['error']['message']}")
+                    return
+                
+                # Retrieve the newly provisioned unique ID
+                new_uid = res_data["localId"]
+                
+                # Update display name safely behind the scenes
+                update_url = f"https://googleapis.com{st.secrets['FIREBASE_WEB_API_KEY']}"
+                requests.post(update_url, json={
+                    "idToken": res_data["idToken"],
+                    "displayName": new_name,
+                    "returnSecureToken": True
+                }, timeout=10)
+                
+                # -------------------------------------------------------------
+                # COMMIT TARGET OBJECT DATA DIRECTLY TO FIRESTORE 
+                # -------------------------------------------------------------
                 structured_payload = {
-                    "uid": created_user.uid,
+                    "uid": new_uid,
                     "name": new_name,
                     "email": new_email,
                     "mobile": new_mobile,
@@ -206,11 +233,13 @@ def render_auth_portal():
                     "created_at": firestore.SERVER_TIMESTAMP
                 }
                 
-                db.collection("users").document(created_user.uid).set(structured_payload)
-                st.success("Account successfully created. Switch to the 'Partner Sign In' tab to log in.")
+                # Write to the specific database instance you linked above
+                db.collection("users").document(new_uid).set(structured_payload)
+                st.success("Account successfully created! Switch to the 'Partner Sign In' tab to log in.")
                 
             except Exception as system_err:
                 st.error(f"Enrolment halted by system validation server: {system_err}")
+
 # =============================================================================
 # 6. RENDER STORE SYSTEM PLATFORM (PRODUCT PANELS & SHOPPING CART)
 # =============================================================================
