@@ -14,11 +14,7 @@ if not firebase_admin._apps:
         if "firebase_service_account" in st.secrets:
             cred_dict = dict(st.secrets["firebase_service_account"])
             cred = credentials.Certificate(cred_dict)
-            
-            # EXPLICIT FIX: We pass options containing the specific project identifier
-            firebase_admin.initialize_app(cred, {
-                'projectId': 'flantech-asia',
-            })
+            firebase_admin.initialize_app(cred)
         else:
             # Fallback path checking for local repository structures
             base_dir = os.path.dirname(os.path.abspath(__file__))
@@ -26,11 +22,7 @@ if not firebase_admin._apps:
             
             if os.path.exists(key_path):
                 cred = credentials.Certificate(key_path)
-                
-                # EXPLICIT FIX: Mirror project tracking attributes locally
-                firebase_admin.initialize_app(cred, {
-                    'projectId': 'flantech-asia',
-                })
+                firebase_admin.initialize_app(cred)
             else:
                 st.error("🚨 Configuration Error: Firebase keys missing. Please configure Streamlit Secrets or upload serviceAccountKey.json.")
                 st.stop()
@@ -39,7 +31,6 @@ if not firebase_admin._apps:
         st.stop()
 
 db = firestore.client()
-
 
 # =============================================================================
 # 2. APPLICATION CONFIGURATION & STATE ENGINES
@@ -186,11 +177,10 @@ def render_auth_portal():
                 return
                 
             try:
-                # -------------------------------------------------------------
-                # SECURE IDENTITY PROVISIONING VIA EXPLICIT CLIENT ENDPOINT
-                # -------------------------------------------------------------
-                # Dynamic key mapping correctly isolated with a trailing ?key= parameter
-                api_url = f"https://googleapis.com{st.secrets['FIREBASE_WEB_API_KEY']}"
+                # FIXED DYNAMIC URL STRINGS: Correctly isolates the variables via f-strings
+                api_key = st.secrets["FIREBASE_WEB_API_KEY"]
+                api_url = f"https://googleapis.com{api_key}"
+                
                 payload = {
                     "email": new_email,
                     "password": new_password,
@@ -206,17 +196,14 @@ def render_auth_portal():
                 
                 new_uid = res_data["localId"]
                 
-                # Update display name profile properties via API
-                update_url = f"https://googleapis.com{st.secrets['FIREBASE_WEB_API_KEY']}"
+                # Update display name profile properties cleanly via structural API values
+                update_url = f"https://googleapis.com{api_key}"
                 requests.post(update_url, json={
                     "idToken": res_data["idToken"],
                     "displayName": new_name,
                     "returnSecureToken": True
                 }, timeout=10)
                 
-                # -------------------------------------------------------------
-                # COMMIT RECIPIENT PROFILE DIRECTLY TO FIRESTORE
-                # -------------------------------------------------------------
                 structured_payload = {
                     "uid": new_uid,
                     "name": new_name,
@@ -236,7 +223,6 @@ def render_auth_portal():
                 
             except Exception as system_err:
                 st.error(f"Enrolment halted by system validation server: {system_err}")
-
 # =============================================================================
 # 6. RENDER STORE SYSTEM PLATFORM (PRODUCT PANELS & SHOPPING CART)
 # =============================================================================
