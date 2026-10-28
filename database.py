@@ -20,3 +20,33 @@ if not firebase_admin._apps:
         firebase_admin.initialize_app(cred)
 
 db = firestore.client()
+
+# =====================================================================
+# APPEND TO THE BOTTOM OF YOUR DATABASE.PY FILE
+# =====================================================================
+
+def verify_upline(upline_id: str, upline_phone: str) -> tuple[bool, str]:
+    """
+    Scans Firestore to confirm if the sponsor exists before linking them.
+    If both fields are completely blank, it allows direct signup safely.
+    """
+    clean_id = upline_id.strip() if upline_id else ""
+    clean_phone = upline_phone.strip() if upline_phone else ""
+    
+    # Bypass verification if fields are left empty for direct registration
+    if not clean_id and not clean_phone:
+        return True, ""
+        
+    # 1. Verify by Upline Member ID Document Key
+    if clean_id:
+        doc_ref = db.collection("users").document(clean_id).get()
+        if doc_ref.exists:
+            return True, doc_ref.id
+            
+    # 2. Verify by Upline Phone Number property query
+    if clean_phone:
+        query = db.collection("users").where("phone", "==", clean_phone).limit(1).stream()
+        for doc in query:
+            return True, doc.id
+            
+    return False, "Sponsor not found. Please double-check the Upline ID or Phone Number."
