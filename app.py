@@ -66,8 +66,12 @@ def render_login_page():
         login_btn = st.form_submit_button("Login to Account")
         
         if login_btn:
-            # 1. Intercept Master Administration Credentials
-            if username == "60164191861" and input_password == "admin":
+            # Clean the input: Remove any accidental '+' signs or trailing spaces
+            cleaned_username = username.replace("+", "").strip()
+            cleaned_password = input_password.strip()
+            
+            # FIXED CHECKPOINT: Sanitized Admin Authentication Check
+            if cleaned_username == "60164191861" and cleaned_password == "admin":
                 st.session_state.logged_in = True
                 st.session_state.is_admin = True
                 st.session_state.user_id = "ADMIN-USER"
@@ -76,12 +80,12 @@ def render_login_page():
                 st.rerun()
             # 2. Process Standard Customer/Agent Authentication Lookups
             else:
-                users_query = db.collection("users").where("email", "==", username.lower()).limit(1).stream()
+                users_query = db.collection("users").where("email", "==", cleaned_username.lower()).limit(1).stream()
                 user_found = None
                 for doc in users_query:
                     user_found = doc.to_dict()
                     
-                if user_found and input_password == "123456":  # Fallback system mock key
+                if user_found and cleaned_password == "123456":
                     st.session_state.logged_in = True
                     st.session_state.is_admin = False
                     st.session_state.user_id = user_found["member_id"]
