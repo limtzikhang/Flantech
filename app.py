@@ -128,105 +128,48 @@ def render_auth_portal():
         login_email = st.text_input("Account Email Address", key="auth_email")
         login_password = st.text_input("Security Access Password", type="password", key="auth_pass")
         
-        if st.button("Verify Identity & Enter", type="primary", use_container_width=True):
-            try:
-                # Direct REST injection protocol for login verification: Bypasses local app memory states completely
-                api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
-                login_url = "https://googleapis.com"
-                
-                res = requests.post(login_url, params={"key": api_key}, json={
-                    "email": login_email, "password": login_password, "returnSecureToken": True
-                }, headers={"Content-Type": "application/json"}, timeout=10)
-                
-                if res.status_code != 200:
-                    st.error("Authentication Refused: Profile credentials incorrect or unmapped inside system accounts.")
-                    return
-                
-                login_data = res.json()
-                auth_uid = login_data["localId"]
-                
-                user_ref = db.collection("users").document(auth_uid).get()
-                is_admin_uid = (auth_uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1")
-                
-                if user_ref.exists:
-                    user_profile = user_ref.to_dict()
-                    if is_admin_uid and user_profile.get("role") != "admin":
-                        db.collection("users").document(auth_uid).update({"role": "admin"})
-                        user_profile["role"] = "admin"
-                        
-                    st.session_state.logged_in = True
-                    st.session_state.user_email = login_email
-                    st.session_state.user_uid = auth_uid
-                    st.session_state.user_name = user_profile.get("name", "Valued Partner")
-                    st.session_state.user_mobile = user_profile.get("mobile", "")
-                    st.success(f"Access granted. Welcome {st.session_state.user_name}")
-                    st.rerun()
-                else:
-                    # Self healing protocol mapping for decoupled identity profiles
-                    assigned_role = "admin" if is_admin_uid else "b2c"
-                    structured_payload = {
-                        "uid": auth_uid,
-                        "name": "Lim Tzik Hang" if is_admin_uid else "Partner",
-                        "email": login_email,
-                        "mobile": "+601XXXXXXXX",
-                        "bank_details": {"bank_name": "Maybank", "account_number": "0000000000"},
-                        "upline_id": None,
-                        "role": assigned_role,
-                        "created_at": firestore.SERVER_TIMESTAMP
-                    }
-                    db.collection("users").document(auth_uid).set(structured_payload)
-                    st.session_state.logged_in = True
-                    st.session_state.user_email = login_email
-                    st.session_state.user_uid = auth_uid
-                    st.session_state.user_name = structured_payload["name"]
-                    st.rerun()
-            except Exception as login_err:
-                st.error(f"Sign In Connection Timeout: {login_err}")
-
-    with tab_signup:
-        st.markdown("### Affiliate Account Registration")
-        st.caption("All fields marked with (*) are required for internal compliance and payment settlements.")
-        
-        col_left, col_right = st.columns(2)
-        with col_left:
-            new_name = st.text_input("Legal Name (matching Identity & Bank Card) *")
-            new_email = st.text_input("Active Primary Email Address *")
-            new_mobile = st.text_input("Mobile Phone Number (e.g., +601XXXXXXXX) *")
-            new_password = st.text_input("Set Security Password (Min 6 Characters) *", type="password")
-            
-        with col_right:
-            malaysia_banks = [
-                "Malayan Banking Berhad (Maybank)", "CIMB Bank Berhad", 
-                "Public Bank Berhad", "RHB Bank Berhad", 
-                "Hong Leong Bank Berhad", "AmBank Berhad"
-            ]
-            bank_name = st.selectbox("Designated Settlement Bank *", malaysia_banks)
-            bank_account = st.text_input("Bank Account Number (For Future Commissions) *")
-            upline_code = st.text_input("Upline Referrer ID / Affiliate Code (Optional)")
-
         if st.button("Register & Verify Account Profile", use_container_width=True):
             if not (new_name and new_email and new_mobile and new_password and bank_account):
                 st.error("Verification halted: Please complete all mandatory fields.")
                 return
                 
             try:
+                # Pull the key string safely from your Streamlit dashboard secrets
                 api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
-                api_url = "https://googleapis.com"
                 
-                # Dynamic mapping strategy isolates payload variables from state caching functions
-                response = requests.post(api_url, params={"key": api_key}, json={
-                    "email": new_email, "password": new_password, "displayName": new_name, "returnSecureToken": True
-                }, headers={"Content-Type": "application/json"}, timeout=10)
+                # =============================================================
+                # IDENTITY PLATFORM FIX: Explicit Project-Branded URL Paths
+                # Routes the traffic directly through your project's bucket instance
+                # =============================================================
+                api_url = f"https://googleapis.com"
                 
+                headers = {"Content-Type": "application/json"}
+                params = {"key": api_key}
+                
+                # We pass the full user creation payload with displayName included natively
+                payload = {
+                    "email": new_email,
+                    "password": new_password,
+                    "displayName": new_name,
+                    "returnSecureToken": True
+                }
+                
+                # Dispatch the secure post request sequence
+                response = requests.post(api_url, params=params, json=payload, headers=headers, timeout=10)
+                
+                # SAFETY GUARD: Catches error text cleanly instead of crashing JSON parsing engines
                 if response.status_code != 200:
-                    st.error(f"🚨 Google Server Rejection (HTTP {response.status_code})")
-                    st.markdown(f"**Error Details:** `{response.text[:200]}`")
+                    st.error(f"🚨 Google Identity Platform Rejection (HTTP {response.status_code})")
+                    st.markdown(f"**Server Status Response:** `{response.text[:250]}`")
                     return
                 
                 res_data = response.json()
                 new_uid = res_data["localId"]
+                
+                # Assign admin role flags to your exact master account token keys
                 assigned_role = "admin" if new_uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1" else "b2c"
                 
+                # Sync profile parameters directly to the Firestore collection ledger
                 structured_payload = {
                     "uid": new_uid,
                     "name": new_name,
@@ -246,6 +189,7 @@ def render_auth_portal():
                 
             except Exception as system_err:
                 st.error(f"Enrolment halted by system validation server: {system_err}")
+
 # =============================================================================
 # 6. RENDER STORE SYSTEM PLATFORM (PRODUCT PANELS & SHOPPING CART)
 # =============================================================================
