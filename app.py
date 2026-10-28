@@ -66,12 +66,12 @@ def render_login_page():
         login_btn = st.form_submit_button("Login to Account")
         
         if login_btn:
-            # Clean and sanitize the input fields
+            # Clean and sanitize the input strings entirely
             cleaned_username = username.replace("+", "").replace(" ", "").strip()
-            cleaned_password = input_password.strip().lower()  # Force lowercase to match "admin"
+            cleaned_password = input_password.strip()
             
             # ====================================================================
-            # FIXED ADMIN GATEWAY (Bypasses Firebase Completely)
+            # 1. FIXED ADMIN GATEWAY (CRITICAL LOGIC BLOCK)
             # ====================================================================
             if cleaned_username == "60164191861" and cleaned_password == "admin":
                 st.session_state.logged_in = True
@@ -80,25 +80,29 @@ def render_login_page():
                 st.success("Welcome back, Master Admin!")
                 time.sleep(0.5)
                 st.rerun()
-                return  # Force stop here so it never queries Firebase
                 
             # ====================================================================
-            # REGULAR USER FIREBASE LOOKUP BLOCK
+            # 2. REGULAR USER LOOKUP (ONLY RUNS IF NOT ADMIN)
             # ====================================================================
-            users_query = db.collection("users").where("email", "==", cleaned_username.lower()).limit(1).stream()
-            user_found = None
-            for doc in users_query:
-                user_found = doc.to_dict()
-                
-            if user_found and input_password.strip() == "123456":
-                st.session_state.logged_in = True
-                st.session_state.is_admin = False
-                st.session_state.user_id = user_found["member_id"]
-                st.success("Successfully logged in!")
-                time.sleep(0.5)
-                st.rerun()
             else:
-                st.error("Invalid credentials or user record does not exist.")
+                try:
+                    users_query = db.collection("users").where("email", "==", cleaned_username.lower()).limit(1).stream()
+                    user_found = None
+                    for doc in users_query:
+                        user_found = doc.to_dict()
+                        
+                    if user_found and cleaned_password == "123456":
+                        st.session_state.logged_in = True
+                        st.session_state.is_admin = False
+                        st.session_state.user_id = user_found["member_id"]
+                        st.success("Successfully logged in!")
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.error("Invalid credentials or user record does not exist.")
+                except Exception as e:
+                    st.error(f"System Error: {str(e)}")
+
 
 
 def render_signup_page():
