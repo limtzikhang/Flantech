@@ -1,15 +1,13 @@
-# database.py
+# database.py - Update the absolute URL configuration at the top
 import streamlit as st
 import requests
 import json
 import time
 from datetime import datetime
 
-# database.py - Update the absolute URL configuration at the top
-PROJECT_ID = "flantech-asia"
+# ABSOLUTE HARDCODED REST ENDPOINT PATH (Bypasses variable composition bugs)
+BASE_URL = "https://googleapis.com"
 
-# FIXED BASE_URL PATH STRUCTURE:
-BASE_URL = f"https://googleapis.com{PROJECT_ID}/databases/(default)/documents"
 
 
 class SimpleFirestoreRESTClient:
