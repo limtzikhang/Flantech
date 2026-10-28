@@ -112,6 +112,10 @@ def render_signup_page():
 
             try:
                 new_member_id = generate_member_id()
+                
+                # =================================================================
+                # CODE CHANGES FOR STEP 3: Add "free_gift_claimed" line at the bottom
+                # =================================================================
                 user_data = {
                     "member_id": new_member_id,
                     "email": email.strip().lower(),
@@ -125,10 +129,12 @@ def render_signup_page():
                     "upline_phone": upline_phone.strip() if upline_phone else "",
                     "upline_name": upline_name.strip() if upline_name else "",
                     "upline_locked": True if confirmed_upline_id else False,
-                    "first_purchase_time": "No buy history"
+                    "first_purchase_time": "No buy history",
+                    "free_gift_claimed": False  # <-- PASTE THIS LINE HERE
                 }
                 db.collection("users").document(new_member_id).set(user_data)
                 st.success(f"Registered! Your Member ID is: **{new_member_id}**")
+_id}**")
             except Exception as e:
                 st.error(f"Error during registration: {str(e)}")
 
