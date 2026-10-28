@@ -417,7 +417,7 @@ def render_admin_dashboard():
 
 
 # =====================================================================
-# SYSTEM APPLICATION CONTROLLER / ROUTER
+# SYSTEM APPLICATION CONTROLLER / ROUTER (BOTTOM OF APP.PY)
 # =====================================================================
 if not st.session_state.logged_in:
     page_selection = st.sidebar.radio("Navigation", ["Login", "Sign Up Form"])
@@ -426,15 +426,31 @@ if not st.session_state.logged_in:
     else:
         render_signup_page()
 else:
+    # 1. Build choices dynamically based on privileges
     menu_options = ["User Dashboard View", "Checkout Store"]
     if st.session_state.get("is_admin", False):
         menu_options.insert(0, "🛡️ Admin Dashboard")
         
     page_selection = st.sidebar.radio("Navigation", menu_options)
     
+    # 2. Corrected Safe Execution Tree Router
     if page_selection == "🛡️ Admin Dashboard":
         render_admin_dashboard()
+        
     elif page_selection == "User Dashboard View":
-        render_account_profile_page()
+        # SAFETY CHECKPOINT: If admin accidentally clicks customer view, protect against Firebase crash
+        if st.session_state.get("is_admin", False):
+            st.title("👤 My Account Profile")
+            st.info("System Privileges: Master Administrator Account Active.")
+            st.write(f"**Admin Instance User ID:** `{st.session_state.user_id}`")
+            if st.button("Log Out"):
+                st.session_state.logged_in = False
+                st.session_state.user_id = None
+                st.session_state.is_admin = False
+                st.rerun()
+        else:
+            # Regular customer profiles can execute standard Firestore checks safely
+            render_account_profile_page()
+            
     elif page_selection == "Checkout Store":
         render_checkout_flow()
