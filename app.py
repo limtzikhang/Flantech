@@ -66,11 +66,13 @@ def render_login_page():
         login_btn = st.form_submit_button("Login to Account")
         
         if login_btn:
-            # Clean the input: Remove any accidental '+' signs or trailing spaces
-            cleaned_username = username.replace("+", "").strip()
-            cleaned_password = input_password.strip()
+            # Clean and sanitize the input fields
+            cleaned_username = username.replace("+", "").replace(" ", "").strip()
+            cleaned_password = input_password.strip().lower()  # Force lowercase to match "admin"
             
-            # FIXED CHECKPOINT: Sanitized Admin Authentication Check
+            # ====================================================================
+            # FIXED ADMIN GATEWAY (Bypasses Firebase Completely)
+            # ====================================================================
             if cleaned_username == "60164191861" and cleaned_password == "admin":
                 st.session_state.logged_in = True
                 st.session_state.is_admin = True
@@ -78,22 +80,26 @@ def render_login_page():
                 st.success("Welcome back, Master Admin!")
                 time.sleep(0.5)
                 st.rerun()
-            # 2. Process Standard Customer/Agent Authentication Lookups
+                return  # Force stop here so it never queries Firebase
+                
+            # ====================================================================
+            # REGULAR USER FIREBASE LOOKUP BLOCK
+            # ====================================================================
+            users_query = db.collection("users").where("email", "==", cleaned_username.lower()).limit(1).stream()
+            user_found = None
+            for doc in users_query:
+                user_found = doc.to_dict()
+                
+            if user_found and input_password.strip() == "123456":
+                st.session_state.logged_in = True
+                st.session_state.is_admin = False
+                st.session_state.user_id = user_found["member_id"]
+                st.success("Successfully logged in!")
+                time.sleep(0.5)
+                st.rerun()
             else:
-                users_query = db.collection("users").where("email", "==", cleaned_username.lower()).limit(1).stream()
-                user_found = None
-                for doc in users_query:
-                    user_found = doc.to_dict()
-                    
-                if user_found and cleaned_password == "123456":
-                    st.session_state.logged_in = True
-                    st.session_state.is_admin = False
-                    st.session_state.user_id = user_found["member_id"]
-                    st.success("Successfully logged in!")
-                    time.sleep(0.5)
-                    st.rerun()
-                else:
-                    st.error("Invalid credentials or user record does not exist.")
+                st.error("Invalid credentials or user record does not exist.")
+
 
 def render_signup_page():
     st.title("📝 Create a New Account")
@@ -280,44 +286,95 @@ def render_checkout_flow():
 
 def render_admin_dashboard():
     st.title("🛡️ Enterprise Admin Control Center")
+    st.markdown("Real-time operational overview of Flantech distribution network and warehouse status.")
+    
     try:
+        # 1. Fetch real-time data streams from your Firestore Collections
         users_ref = db.collection("users").stream()
         orders_ref = db.collection("orders").stream()
+        
         all_users = [u.to_dict() for u in users_ref]
         all_orders = [o.to_dict() for o in orders_ref]
         
-        col1, col2, col3 = st.columns(3)
-        col1.metric("Registered Members", len(all_users))
-        col2.metric("Orders Completed", len(all_orders))
-        total_rev = sum(float(o.get("total_amount", 0)) for o in all_orders if o.get("payment_status") == "Paid")
-        col3.metric("Total Corporate Revenue", f"RM {total_rev:,.2f}")
-        st.subheader("👥 Live Member Database")
-        st.dataframe(all_users, use_container_width=True)
+        # 2. Calculate Top-Level System Analytics Metrics
+        total_members = len(all_users)
+        total_orders_processed = len(all_orders)
         
-        st.subheader("📦 Central Packing & Warehouse Delivery Ledger")
-        audit_records = []
-        for o in all_orders:
-            gift_count = o.get("free_bottles_gift", 0)
-            upline = o.get("upline_sponsor_snapshot", "")
-            
-            note_str = "Standard Delivery"
-            if gift_count > 0:
-                note_str = f"🎁 Includes 1-Time Free Gift Sign-Up under Upline: {upline}"
-                
-            audit_records.append({
-                "Order ID": o.get("order_id"),
-                "Buyer ID": o.get("member_id"),
-                "Paid Qty": o.get("quantity_purchased"),
-                "Gift Qty": gift_count,
-                "Total Ship Units": o.get("total_delivery_units"),
-                "Amount": f"RM {float(o.get('total_amount', 0)):.2f}",
-                "Fulfillment Note": note_str,
-                "Timestamp": o.get("timestamp")
+        # Only sum revenue from orders that are marked "Paid" or "Shipped" (excludes cancelled/pending)
+        total_revenue = sum(
+            float(o.get("total_amount", 0)) 
+            for o in all_orders 
+            if o.get("payment_status") in ["Paid", "Shipped"]
+        )
+        
+        total_bottles_sold = sum(
+            int(o.get("quantity_purchased", 0)) 
+            for o in all_orders 
+            if o.get("payment_status") in ["Paid", "Shipped"]
+        )
+        
+        # 3. Render Metric Cards Layout Display
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Registered Members", total_members)
+        col2.metric("Orders Processed", total_orders_processed)
+        col3.metric("Total Revenue", f"RM {total_revenue:,.2f}")
+        col4.metric("Total Bottles Sold", f"{total_bottles_sold} units")
+        
+        # 4. View Master Registered Member Directory
+        st.markdown("---")
+        st.subheader("👥 Registered Member Directory")
+        
+        member_list = []
+        for u in all_users:
+            member_list.append({
+                "Member ID": u.get("member_id"),
+                "Name": u.get("full_name"),
+                "Phone": u.get("phone"),
+                "Bank Account": f"{u.get('bank_name')} ({u.get('bank_account')})",
+                "Sponsor ID": u.get("upline_id") if u.get("upline_id") else "Direct Signup",
+                "1st Purchase Date": u.get("first_purchase_time", "No buy history")
             })
-        st.dataframe(audit_records, use_container_width=True)
+        st.dataframe(member_list, use_container_width=True)
         
+        # 5. Interactive Central Packing & Warehouse Delivery Ledger
+        st.markdown("---")
+        st.subheader("📦 Central Packing & Warehouse Delivery Ledger")
+        
+        if not all_orders:
+            st.info("No orders found in the central ledger system.")
+        else:
+            for o in all_orders:
+                order_id = o.get("order_id")
+                current_status = o.get("payment_status", "Paid")
+                gift_count = o.get("free_bottles_gift", 0)
+                upline = o.get("upline_sponsor_snapshot", "")
+                
+                # Determine fulfillment action alert status string notes
+                note_str = "Standard Delivery"
+                if gift_count > 0:
+                    note_str = f"🎁 Includes 1-Time Free Gift Sign-Up under Upline Sponsor: {upline}"
+                
+                # Render interactive individual drop-down expander records
+                with st.expander(f"📋 Order ID: {order_id} | Status: {current_status.upper()}"):
+                    st.write(f"**Buyer ID:** `{o.get('member_id')}` | **Date/Time:** {o.get('timestamp')}")
+                    st.write(f"**Paid Bottles:** {o.get('quantity_purchased')} units | **Gift Bottles:** {gift_count} units")
+                    st.write(f"**Total Units to Package & Deliver:** {o.get('total_delivery_units')} bottles")
+                    st.write(f"**Total Amount Collected:** RM {float(o.get('total_amount', 0)):.2f}")
+                    st.info(f"**Fulfillment Action Note:** {note_str}")
+                    
+                    # Live Toggle Status Button Action Interface
+                    if current_status == "Paid":
+                        if st.button(f"Mark Order {order_id} as Shipped", key=f"ship_{order_id}"):
+                            db.collection("orders").document(order_id).update({"payment_status": "Shipped"})
+                            st.success(f"Order {order_id} updated to Shipped! Refreshing...")
+                            time.sleep(0.5)
+                            st.rerun()
+                    else:
+                        st.success("✅ This shipment package has left the facility and is with the courier.")
+                        
     except Exception as e:
-        st.error(f"Could not load admin workspace parameters: {str(e)}")
+        st.error(f"Could not load enterprise workspace parameters: {str(e)}")
+
 
 # =====================================================================
 # SYSTEM APPLICATION CONTROLLER / ROUTER
