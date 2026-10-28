@@ -70,75 +70,62 @@ def render_login_page():
     
     login_btn = st.button("Login to Account")
     
-    if login_btn:
-        st.session_state.input_user = username
-        st.session_state.input_pass = input_password
-
-        # Clean inputs: remove spaces, symbols, and force lowercase for passwords
-        cleaned_username = username.replace("+", "").replace(" ", "").strip()
-        cleaned_password = input_password.strip().lower()  # Forces lowercase "admin" or "123456"
-        
-        if not cleaned_username or not cleaned_password:
-            st.error("Please fill in your login credentials.")
-            return
-
-        # ====================================================================
-        # 1. FIXED ADMIN GATEWAY (Checks phone number AND case-insensitive password)
-        # ====================================================================
-        if cleaned_username == "60164191861" and cleaned_password == "admin":
-            st.session_state.logged_in = True
-            st.session_state.is_admin = True
-            st.session_state.user_id = "ADMIN-USER"
+        if login_btn:
+            # Fully sanitize inputs: eliminate trailing whitespaces and strip formatting text
+            cleaned_username = username.replace("+", "").replace(" ", "").strip().lower()
+            cleaned_password = input_password.strip().lower()
             
-            st.session_state.input_user = ""
-            st.session_state.input_pass = ""
+            # ====================================================================
+            # DUAL MASTER ADMIN GATEWAY LOGIC (Bypasses Firebase Safely)
+            # ====================================================================
+            is_admin_phone = (cleaned_username == "60164191861" and cleaned_password == "admin")
+            is_admin_email = (cleaned_username == "limtzikhang@gmail.com" and cleaned_password == "admin")
             
-            st.success("Welcome back, Master Admin!")
-            time.sleep(0.5)
-            st.rerun()
-            return
+            if is_admin_phone or is_admin_email:
+                st.session_state.logged_in = True
+                st.session_state.is_admin = True
+                st.session_state.user_id = "ADMIN-USER"
+                
+                # Clear raw tracking cache fields for security purposes
+                st.session_state.input_user = ""
+                st.session_state.input_pass = ""
+                
+                st.success("Welcome back, Master Admin!")
+                time.sleep(0.5)
+                st.rerun()
+                return  # Force kill thread loop to ensure no fall-through to Firebase failure
+                
+            # ====================================================================
+            # STANDARD CONSUMER CUSTOMER BACKEND FIRESTORE LOOKUP
+            # ====================================================================
+            else:
+                try:
+                    user_found = None
+                    if "@" in cleaned_username:
+                        users_query = db.collection("users").where("email", "==", cleaned_username).limit(1).stream()
+                        for doc in users_query:
+                            user_found = doc.to_dict()
+                    else:
+                        users_query = db.collection("users").where("phone", "==", cleaned_username).limit(1).stream()
+                        for doc in users_query:
+                            user_found = doc.to_dict()
+                            
+                    if user_found and cleaned_password == "123456":
+                        st.session_state.logged_in = True
+                        st.session_state.is_admin = False
+                        st.session_state.user_id = user_found["member_id"]
+                        
+                        st.session_state.input_user = ""
+                        st.session_state.input_pass = ""
+                        
+                        st.success("Successfully logged in!")
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.error("Invalid credentials provided. Check email/phone number or password.")
+                except Exception as e:
+                    st.error(f"System Network Error: {str(e)}")
 
-        # ====================================================================
-        # 2. HYBRID CUSTOMER LOGIN (Allows Email OR Phone Number login)
-        # ====================================================================
-        else:
-            try:
-                user_found = None
-                
-                # Check A: Try treating username as an Email Address
-                if "@" in cleaned_username:
-                    users_query = db.collection("users").where("email", "==", cleaned_username.lower()).limit(1).stream()
-                    for doc in users_query:
-                        user_found = doc.to_dict()
-                
-                # Check B: Try treating username as a Phone Number if Email query returned empty
-                if not user_found:
-                    users_query = db.collection("users").where("phone", "==", cleaned_username).limit(1).stream()
-                    for doc in users_query:
-                        user_found = doc.to_dict()
-                
-                # Check C: Try treating username as a Member ID if both above returned empty
-                if not user_found:
-                    doc_ref = db.collection("users").document(username.strip()).get()
-                    if doc_ref.exists:
-                        user_found = doc_ref.to_dict()
-
-                # Validate the discovered user profile matching parameters
-                if user_found and cleaned_password == "123456":
-                    st.session_state.logged_in = True
-                    st.session_state.is_admin = False
-                    st.session_state.user_id = user_found["member_id"]
-                    
-                    st.session_state.input_user = ""
-                    st.session_state.input_pass = ""
-                    
-                    st.success("Successfully logged in!")
-                    time.sleep(0.5)
-                    st.rerun()
-                else:
-                    st.error("Invalid credentials provided. Check your email/phone number or password.")
-            except Exception as e:
-                st.error(f"System Network Error: {str(e)}")
 
 
 def render_signup_page():
