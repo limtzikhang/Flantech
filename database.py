@@ -4,8 +4,9 @@ from firebase_admin import credentials, firestore
 import streamlit as st
 import os
 from google.cloud import firestore as google_firestore
+from google.oauth2 import service_account
 
-# Enforce strict server environment isolation bypass controls
+# Absolute containment rules to suppress environment plugin checking
 os.environ["GCM_METADATA_TIMEOUT"] = "0"
 os.environ["AUTO_RENEW_CREDENTIALS"] = "False"
 os.environ["GOOGLE_AUTH_SUPPRESS_CREDENTIALS_WARNINGS"] = "true"
@@ -14,34 +15,33 @@ db = None
 
 if not firebase_admin._apps:
     if "firebase" in st.secrets:
+        # Pull parameters dynamically from the Secrets panel map
         firebase_dict = dict(st.secrets["firebase"])
-        
-        # Absolute string decoding transformation strategy
         if "private_key" in firebase_dict:
-            # Replaces literal string text characters with true structural newlines
-            firebase_dict["private_key"] = firebase_dict["private_key"].replace("\\n", "\n").replace(r"\n", "\n")
+            firebase_dict["private_key"] = firebase_dict["private_key"].replace("\\n", "\n").strip()
             
         cred = credentials.Certificate(firebase_dict)
         firebase_admin.initialize_app(cred)
-        db = google_firestore.Client(project="flantech-asia", credentials=cred.get_credential())
+        
+        # FIX: Directly use google.oauth2 constructor to isolate connection parameters
+        g_cred = service_account.Credentials.from_service_account_info(firebase_dict)
+        db = google_firestore.Client(project="flantech-asia", credentials=g_cred)
     else:
+        # Local computer developer execution fallback route
         cred = credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-43ed14c73a.json")
         firebase_admin.initialize_app(cred)
-        db = google_firestore.Client(project="flantech-asia", credentials=cred.get_credential())
+        db = firestore.client()
 else:
+    # Rerun logic mapping alignment to sustain active compilation states
     if "firebase" in st.secrets:
         firebase_dict = dict(st.secrets["firebase"])
         if "private_key" in firebase_dict:
-            firebase_dict["private_key"] = firebase_dict["private_key"].replace("\\n", "\n").replace(r"\n", "\n")
-        cred = credentials.Certificate(firebase_dict)
+            firebase_dict["private_key"] = firebase_dict["private_key"].replace("\\n", "\n").strip()
+        g_cred = service_account.Credentials.from_service_account_info(firebase_dict)
+        db = google_firestore.Client(project="flantech-asia", credentials=g_cred)
     else:
-        cred = credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-43ed14c73a.json")
-        
-    db = google_firestore.Client(project="flantech-asia", credentials=cred.get_credential())
+        db = firestore.client()
 
-# =====================================================================
-# SYSTEM BUSINESS UTILITIES
-# =====================================================================
 def verify_upline(upline_id: str, upline_phone: str) -> tuple[bool, str]:
     clean_id = upline_id.strip() if upline_id else ""
     clean_phone = upline_phone.strip() if upline_phone else ""
