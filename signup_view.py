@@ -87,8 +87,19 @@ with st.form("signup_form", clear_on_submit=False):
                             "free_gift_claimed": False
                         }
                         
+                        # ... (This is the database write code inside your signup_view.py) ...
                         db.collection("users").document(new_member_id).set(user_data)
+                        
+                        # 1. Output the registration toast notification
                         st.success(f"🎉 **Registration Successful!** Your unique Member ID is: **{new_member_id}**")
+                        st.balloons() # Dynamic celebratory graphics asset
+                        
+                        # 2. FORCE AUTOMATIC REDIRECT TO LOGIN VIEW
+                        st.info("🔄 Redirecting to the Login screen...")
+                        time.sleep(2.0) # Allow them 2 seconds to write down their Member ID string
+                        
+                        # Swaps the left pane state and pushes them to your home_view.py script seamlessly
+                        st.switch_page("home_view.py")
                         
                     except Exception as e:
                         st.error(f"❌ Database Transaction Failure: {str(e)}")
