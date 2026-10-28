@@ -6,7 +6,7 @@ import time
 
 # Initialize Firebase safely
 if not firebase_admin._apps:
-    cred = credentials.Certificate("test.json")
+    cred = credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-078f0e696c.json")
     firebase_admin.initialize_app(cred)
 
 db = firestore.client()
