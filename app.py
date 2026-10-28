@@ -177,19 +177,20 @@ def render_auth_portal():
                 return
                 
             try:
-                # FIX: Explicit text isolation ensures clean request generation boundaries
+                # BIND KEY SECURELY FROM THE ENVIRONMENT
                 api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
                 
-                # We structurally build the query paths manually with crisp separators
-                api_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={api_key}"
-                
+                # FIXED ENDPOINTS: Kept as standard isolated formats to prevent host connection pooling errors
+                api_url = "https://googleapis.com"
+                params = {"key": api_key}
                 payload = {
                     "email": new_email,
                     "password": new_password,
                     "returnSecureToken": True
                 }
                 
-                response = requests.post(api_url, json=payload, timeout=10)
+                # Pass parameters safely using requests engine functionality
+                response = requests.post(api_url, params=params, json=payload, timeout=10)
                 res_data = response.json()
                 
                 if "error" in res_data:
@@ -199,8 +200,8 @@ def render_auth_portal():
                 new_uid = res_data["localId"]
                 
                 # Explicit update profile name parameters mapping
-                update_url = f"https://googleapis.com{api_key}"
-                requests.post(update_url, json={
+                update_url = "https://googleapis.com"
+                requests.post(update_url, params=params, json={
                     "idToken": res_data["idToken"],
                     "displayName": new_name,
                     "returnSecureToken": True
@@ -225,7 +226,6 @@ def render_auth_portal():
                 
             except Exception as system_err:
                 st.error(f"Enrolment halted by system validation server: {system_err}")
-
 # =============================================================================
 # 6. RENDER STORE SYSTEM PLATFORM (PRODUCT PANELS & SHOPPING CART)
 # =============================================================================
