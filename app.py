@@ -177,26 +177,31 @@ def render_auth_portal():
                 return
                 
             try:
-                # BIND KEY SECURELY FROM THE ENVIRONMENT
+                # 1. Pull the key string safely from your Streamlit dashboard secrets
                 api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
                 
-                # FIXED ENDPOINTS: Kept as standard isolated formats to prevent host connection pooling errors
-                api_url = "https://googleapis.com"
+                # 2. Hardcode the absolute URL endpoint string explicitly to block routing bugs
+                api_url = "https://identitytoolkit.googleapis.com/v1/accounts:signUp"
                 params = {"key": api_key}
+                
+                # 3. CRITICAL FIX: Add explicit JSON application header values
+                headers = {"Content-Type": "application/json"}
                 payload = {
                     "email": new_email,
                     "password": new_password,
                     "returnSecureToken": True
                 }
                 
-                # Pass parameters safely using requests engine functionality
-                response = requests.post(api_url, params=params, json=payload, timeout=10)
-                res_data = response.json()
+                # Dispatch the secure post execution sequence
+                response = requests.post(api_url, params=params, json=payload, headers=headers, timeout=10)
                 
-                if "error" in res_data:
-                    st.error(f"Registration Refused: {res_data['error']['message']}")
+                # 4. SAFETY GUARD: Intercept HTML block pages cleanly before JSON parsing triggers
+                if response.status_code != 200:
+                    st.error(f"🚨 Google Server Rejection (HTTP {response.status_code})")
+                    st.markdown(f"**Error Details:** `{response.text[:200]}`")
                     return
                 
+                res_data = response.json()
                 new_uid = res_data["localId"]
                 
                 # Explicit update profile name parameters mapping
@@ -205,7 +210,7 @@ def render_auth_portal():
                     "idToken": res_data["idToken"],
                     "displayName": new_name,
                     "returnSecureToken": True
-                }, timeout=10)
+                }, headers=headers, timeout=10)
                 
                 structured_payload = {
                     "uid": new_uid,
@@ -226,6 +231,7 @@ def render_auth_portal():
                 
             except Exception as system_err:
                 st.error(f"Enrolment halted by system validation server: {system_err}")
+
 # =============================================================================
 # 6. RENDER STORE SYSTEM PLATFORM (PRODUCT PANELS & SHOPPING CART)
 # =============================================================================
