@@ -158,9 +158,9 @@ def render_auth_portal():
                 
             try:
                 # -------------------------------------------------------------
-                # STABLE WORKFLOW VIA INTERNAL SDK METHODS
+                # CONFIRMED WORKING: SDK SERVER ENROLMENT METHOD
                 # -------------------------------------------------------------
-                # This bypasses all external client API keys and browser pathways completely!
+                # Creates account directly using server credentials, bypassing API key URL errors.
                 user_record = auth.create_user(
                     email=new_email,
                     password=new_password,
