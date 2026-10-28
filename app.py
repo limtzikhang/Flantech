@@ -60,40 +60,36 @@ def render_login_page():
     st.title("🔐 Sign In")
     st.markdown("Access your Flantech affiliate network portal.")
     
-    # 1. Initialize persistent input memory inside session states if missing
     if "input_user" not in st.session_state:
         st.session_state.input_user = ""
     if "input_pass" not in st.session_state:
         st.session_state.input_pass = ""
 
-    # 2. Use values anchored to session memory so Streamlit can't wipe them on refresh
-    username = st.text_input("Username (Email or Admin Phone)", value=st.session_state.input_user)
+    username = st.text_input("Username (Email or Phone Number)", value=st.session_state.input_user)
     input_password = st.text_input("Password", type="password", value=st.session_state.input_pass)
     
     login_btn = st.button("Login to Account")
     
     if login_btn:
-        # Save current typing values immediately to avoid loop dropouts
         st.session_state.input_user = username
         st.session_state.input_pass = input_password
 
-        # Clean and sanitize structural spaces or country code variations
+        # Clean inputs: remove spaces, symbols, and force lowercase for passwords
         cleaned_username = username.replace("+", "").replace(" ", "").strip()
-        cleaned_password = input_password.strip()
+        cleaned_password = input_password.strip().lower()  # Forces lowercase "admin" or "123456"
         
         if not cleaned_username or not cleaned_password:
             st.error("Please fill in your login credentials.")
             return
 
         # ====================================================================
-        # IMMUTABLE HARDCODED ADMIN GATEWAY RULE
+        # 1. FIXED ADMIN GATEWAY (Checks phone number AND case-insensitive password)
         # ====================================================================
         if cleaned_username == "60164191861" and cleaned_password == "admin":
             st.session_state.logged_in = True
             st.session_state.is_admin = True
             st.session_state.user_id = "ADMIN-USER"
             
-            # Clear text fields memory so it stays safe upon eventual logout
             st.session_state.input_user = ""
             st.session_state.input_pass = ""
             
@@ -101,17 +97,33 @@ def render_login_page():
             time.sleep(0.5)
             st.rerun()
             return
-            
+
         # ====================================================================
-        # STANDARD CONSUMER CUSTOMER BACKEND QUERY
+        # 2. HYBRID CUSTOMER LOGIN (Allows Email OR Phone Number login)
         # ====================================================================
         else:
             try:
-                users_query = db.collection("users").where("email", "==", cleaned_username.lower()).limit(1).stream()
                 user_found = None
-                for doc in users_query:
-                    user_found = doc.to_dict()
-                    
+                
+                # Check A: Try treating username as an Email Address
+                if "@" in cleaned_username:
+                    users_query = db.collection("users").where("email", "==", cleaned_username.lower()).limit(1).stream()
+                    for doc in users_query:
+                        user_found = doc.to_dict()
+                
+                # Check B: Try treating username as a Phone Number if Email query returned empty
+                if not user_found:
+                    users_query = db.collection("users").where("phone", "==", cleaned_username).limit(1).stream()
+                    for doc in users_query:
+                        user_found = doc.to_dict()
+                
+                # Check C: Try treating username as a Member ID if both above returned empty
+                if not user_found:
+                    doc_ref = db.collection("users").document(username.strip()).get()
+                    if doc_ref.exists:
+                        user_found = doc_ref.to_dict()
+
+                # Validate the discovered user profile matching parameters
                 if user_found and cleaned_password == "123456":
                     st.session_state.logged_in = True
                     st.session_state.is_admin = False
@@ -124,10 +136,9 @@ def render_login_page():
                     time.sleep(0.5)
                     st.rerun()
                 else:
-                    st.error("Invalid credentials provided.")
+                    st.error("Invalid credentials provided. Check your email/phone number or password.")
             except Exception as e:
                 st.error(f"System Network Error: {str(e)}")
-
 
 
 def render_signup_page():
