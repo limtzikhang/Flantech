@@ -30,21 +30,20 @@ with st.form("signup_form", clear_on_submit=False):
     gender = st.selectbox("Gender *", options=["", "Male", "Female"])
     
     # =====================================================================
-    # FIXED BIRTHDATE DATE CONFIGURATION: BOUNDS EXTENDED FROM YEAR 1900
+    # OPEN CALENDAR CONFIGURATION (Allows selection up to today's date)
     # =====================================================================
-    max_birth_year = date.today().year - 18
-    default_birth_date = date(max_birth_year, date.today().month, date.today().day)
-    min_birth_date = date(1900, 1, 1) # Sets the structural calendar floor
+    min_birth_date = date(1900, 1, 1)
+    max_birth_date = date.today()  # Allows scrolling all the way up to today!
     
-    # Injected min_value constraint allows historical year selection loops
     birth_date = st.date_input(
         "Date of Birth *", 
-        value=default_birth_date,
+        value=max_birth_date,  # Defaults to today's date initial layout
         min_value=min_birth_date,
-        max_value=date.today()
+        max_value=max_birth_date
     )
     
     bank_name = st.selectbox("Bank Name *", options=[""] + MALAYSIA_BANKS)
+
 
     bank_account = st.text_input("Bank Account Number *")
     
