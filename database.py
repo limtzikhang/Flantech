@@ -16,40 +16,23 @@ if not firebase_admin._apps:
     if "firebase" in st.secrets:
         firebase_dict = dict(st.secrets["firebase"])
         
-        # =====================================================================
-        # UNIVERSAL RSA PEM REPAIR ENGINE (FIXES ALL KEY FORMAT MATCHES)
-        # =====================================================================
+        # Absolute string decoding transformation strategy
         if "private_key" in firebase_dict:
-            pk = firebase_dict["private_key"]
-            
-            # 1. Standardize explicit text character line indicator blocks
-            pk = pk.replace("\\n", "\n").strip()
-            
-            # 2. If it's a single raw string cluster, isolate the base64 structure body text chunks cleanly
-            if "-----BEGIN PRIVATE KEY-----" in pk and "-----END PRIVATE KEY-----" in pk:
-                body = pk.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "").strip()
-                # Split blocks by whatever lines are present and join them back using real system carriage breaks
-                lines_cleaned = "\n".join([line.strip() for line in body.splitlines() if line.strip()])
-                firebase_dict["private_key"] = f"-----BEGIN PRIVATE KEY-----\n{lines_cleaned}\n-----END PRIVATE KEY-----\n"
+            # Replaces literal string text characters with true structural newlines
+            firebase_dict["private_key"] = firebase_dict["private_key"].replace("\\n", "\n").replace(r"\n", "\n")
             
         cred = credentials.Certificate(firebase_dict)
         firebase_admin.initialize_app(cred)
         db = google_firestore.Client(project="flantech-asia", credentials=cred.get_credential())
     else:
-        # Local computer execution pipeline fallback connection rule
         cred = credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-43ed14c73a.json")
         firebase_admin.initialize_app(cred)
         db = google_firestore.Client(project="flantech-asia", credentials=cred.get_credential())
 else:
-    # Rerun logic mapping alignment to sustain active compilation states
     if "firebase" in st.secrets:
         firebase_dict = dict(st.secrets["firebase"])
         if "private_key" in firebase_dict:
-            pk = firebase_dict["private_key"].replace("\\n", "\n").strip()
-            if "-----BEGIN PRIVATE KEY-----" in pk and "-----END PRIVATE KEY-----" in pk:
-                body = pk.replace("-----BEGIN PRIVATE KEY-----", "").replace("-----END PRIVATE KEY-----", "").strip()
-                lines_cleaned = "\n".join([line.strip() for line in body.splitlines() if line.strip()])
-                firebase_dict["private_key"] = f"-----BEGIN PRIVATE KEY-----\n{lines_cleaned}\n-----END PRIVATE KEY-----\n"
+            firebase_dict["private_key"] = firebase_dict["private_key"].replace("\\n", "\n").replace(r"\n", "\n")
         cred = credentials.Certificate(firebase_dict)
     else:
         cred = credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-43ed14c73a.json")
@@ -57,7 +40,7 @@ else:
     db = google_firestore.Client(project="flantech-asia", credentials=cred.get_credential())
 
 # =====================================================================
-# SYSTEM BUSINESS REVENUE UTILITY MECHANICS
+# SYSTEM BUSINESS UTILITIES
 # =====================================================================
 def verify_upline(upline_id: str, upline_phone: str) -> tuple[bool, str]:
     clean_id = upline_id.strip() if upline_id else ""
