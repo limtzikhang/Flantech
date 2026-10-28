@@ -3,7 +3,6 @@ import firebase_admin
 from firebase_admin import credentials, auth, firestore
 import json
 import os
-import requests
 
 # =============================================================================
 # 1. CORE BACKEND INITIALIZATION (FIREBASE & FIRESTORE)
@@ -73,50 +72,8 @@ def calculate_price(qty):
         price_per_bottle = 148  # Safeguard enforcement fallback value
         
     return price_per_bottle, qty * price_per_bottle
-
 # =============================================================================
-# 4. LIVE MALAYSIAN PAYMENT INTEGRATION GATEWAY HOOKS
-# =============================================================================
-def request_toyyibpay_fpx(name, email, phone, amount, desc):
-    """
-    Dispatches billing payloads directly to the ToyyibPay local engine.
-    Formats money strictly into Malaysian Cents (Sen) as required by FPX.
-    """
-    url = 'https://toyyibpay.com'
-    
-    try:
-        secret_key = st.secrets["payment"]["toyyibpay_secret"]
-        cat_code = st.secrets["payment"]["toyyibpay_category"]
-    except Exception:
-        secret_key = "MOCK_SECRET_KEY"
-        cat_code = "MOCK_CAT_CODE"
-
-    payload = {
-        'userSecretKey': secret_key,
-        'categoryCode': cat_code,
-        'billName': 'Flantech Order Settlement',
-        'billDescription': desc,
-        'billPriceSetting': 1,
-        'billPayeeInfo': 1,
-        'billAmount': int(amount * 100),  # Converts RM to Sen (e.g. RM248 -> 24800)
-        'billReturnUrl': 'https://github.com',
-        'billCallbackUrl': 'https://your-api-receiver.com',
-        'billExternalReferenceNo': f"FT-{os.urandom(4).hex().upper()}",
-        'billTo': name,
-        'billEmail': email,
-        'billPhone': phone
-    }
-    
-    if secret_key == "MOCK_SECRET_KEY":
-        return {"status": "success", "billURL": "https://toyyibpay.com"}
-        
-    try:
-        response = requests.post(url, data=payload, timeout=10)
-        return response.json()
-    except Exception as e:
-        return {"status": "error", "message": str(e)}
-# =============================================================================
-# 5. RENDER SYSTEM PORTAL: SECURE SIGN-IN & REGISTRATION
+# 4. RENDER SYSTEM PORTAL: SECURE SIGN-IN & REGISTRATION
 # =============================================================================
 def render_auth_portal():
     st.title("⚡ Flantech Hybrid Corporate Portal")
@@ -141,7 +98,6 @@ def render_auth_portal():
                 if user_ref.exists:
                     user_profile = user_ref.to_dict()
                     
-                    # Force update the field role to admin in Firestore securely if missing
                     if is_admin_uid and user_profile.get("role") != "admin":
                         db.collection("users").document(user_auth_record.uid).update({"role": "admin"})
                         user_profile["role"] = "admin"
@@ -179,7 +135,6 @@ def render_auth_portal():
         st.caption("All fields marked with (*) are required for internal compliance and payment settlements.")
         
         col_left, col_right = st.columns(2)
-        
         with col_left:
             new_name = st.text_input("Legal Name (matching Identity & Bank Card) *")
             new_email = st.text_input("Active Primary Email Address *")
@@ -202,41 +157,22 @@ def render_auth_portal():
                 return
                 
             try:
-                # 1. Pull the key string safely from your Streamlit dashboard secrets
-                api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
+                # -------------------------------------------------------------
+                # STABLE WORKFLOW VIA INTERNAL SDK METHODS
+                # -------------------------------------------------------------
+                # This bypasses all external client API keys and browser pathways completely!
+                user_record = auth.create_user(
+                    email=new_email,
+                    password=new_password,
+                    display_name=new_name
+                )
                 
-                # =============================================================
-                # DIRECT FIXED ROUTE: We append the key directly into the string
-                # This explicitly avoids 404 proxy dropping errors entirely.
-                # =============================================================
-                api_url = f"https://googleapis.com{api_key}"
-                
-                headers = {"Content-Type": "application/json"}
-                payload = {
-                    "email": new_email,
-                    "password": new_password,
-                    "returnSecureToken": True
-                }
-                
-                # Dispatch the secure user provisioning post sequence
-                response = requests.post(api_url, json=payload, headers=headers, timeout=10)
-                
-                # SAFETY GUARD: Catches error text cleanly instead of crashing JSON engines
-                if response.status_code != 200:
-                    st.error(f"🚨 Network Rejection (HTTP {response.status_code})")
-                    st.markdown(f"**Server Status Response:** `{response.text[:200]}`")
-                    return
-                
-                res_data = response.json()
-                new_uid = res_data["localId"]
-                
-                # Check for admin UID match during structural signup properties validation
+                new_uid = user_record.uid
                 assigned_role = "admin" if new_uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1" else "b2c"
                 
-                # 2. Sync profile fields directly to the Firestore Collection
                 structured_payload = {
                     "uid": new_uid,
-                    "name": new_name,          # Saves your exact input as Legal Name anchor
+                    "name": new_name,
                     "email": new_email,
                     "mobile": new_mobile,
                     "bank_details": {
@@ -254,7 +190,7 @@ def render_auth_portal():
             except Exception as system_err:
                 st.error(f"Enrolment halted by system validation server: {system_err}")
 # =============================================================================
-# 6. RENDER STORE SYSTEM PLATFORM (PRODUCT PANELS & SHOPPING CART)
+# 5. RENDER STORE SYSTEM PLATFORM (PRODUCT PANELS & SHOPPING CART)
 # =============================================================================
 def render_store_front():
     st.sidebar.title("🛡️ Partner Workspace")
@@ -325,47 +261,65 @@ def render_store_front():
     st.info("💡 **Wholesale Threshold Matrix:** 1 Unit: RM248 | 2-49 Units: RM198 per unit | Exactly 50 Units (B2B Bulk Cap): RM148 per unit.")
     
     # =============================================================================
-    # 7. CASHWAY GATEWAY INTERFACES (MALAYSIA DOMESTIC CLEARING HOUSES ONLY)
+    # 6. MOCK LOCAL MALAYSIAN PAYMENT LEDGER ENGAGEMENT
     # =============================================================================
     st.markdown("#### 💳 Domestic Financial Settlement Module")
     payment_channel = st.radio("Authorized Clearing Node Integration", ["FPX Real-Time Local Bank Processing Portal", "DuitNow QR Instant Cash Network"])
     
     if st.button("Authorize Payment & Lock Order Request", type="primary", use_container_width=True):
-        st.write("Contacting Malaysian payment clearing networks... Please wait.")
+        st.write("Simulating local Malaysian payment node integration clearing portal... Please wait.")
         
-        payment_gateway_response = request_toyyibpay_fpx(
-            name=st.session_state.user_name,
-            email=st.session_state.user_email,
-            phone=st.session_state.user_mobile,
-            amount=net_aggregated_cost,
-            desc=f"Purchase of {purchase_qty}x {target_item}"
-        )
+        ledger_block = {
+            "buyer_uid": st.session_state.user_uid,
+            "inventory_line": target_item,
+            "volume_purchased": purchase_qty,
+            "calculated_unit_rate": cost_per_unit,
+            "total_ringgit_value": net_aggregated_cost,
+            "payment_node": payment_channel,
+            "settlement_status": "Completed (Simulated FPX Callback Settlement)",
+            "assigned_corporate_tier": "B2B" if purchase_qty == 50 else "B2C",
+            "timestamp_created": firestore.SERVER_TIMESTAMP
+        }
         
-        if payment_gateway_response.get("status") == "success" or "billURL" in payment_gateway_response:
-            ledger_block = {
-                "buyer_uid": st.session_state.user_uid,
-                "inventory_line": target_item,
-                "volume_purchased": purchase_qty,
-                "calculated_unit_rate": cost_per_unit,
-                "total_ringgit_value": net_aggregated_cost,
-                "payment_node": payment_channel,
-                "settlement_status": "Awaiting Gateway Authentication",
-                "assigned_corporate_tier": "B2B" if purchase_qty == 50 else "B2C",
-                "timestamp_created": firestore.SERVER_TIMESTAMP
-            }
-            
-            try:
-                db.collection("orders").add(ledger_block)
-                st.balloons()
-                st.success(f"Order Registered! Please settle payment through the secure portal below.")
-                st.markdown(f"🔗 **[Click Here to Open FPX Bank Portal Gateway]({payment_gateway_response.get('billURL')})**")
-            except Exception as db_err:
-                st.error(f"Ledger Registry Error: Internal log insertion failure: {db_err}")
-        else:
-            st.error(f"Gateway Interface Fault: Clearing network returned error: {payment_gateway_response.get('message')}")
+        try:
+            db.collection("orders").add(ledger_block)
+            st.balloons()
+            st.success(f"Order Registered! RM {net_aggregated_cost}.00 settled securely via simulated local bank FPX clearing loop node.")
+        except Exception as db_err:
+            st.error(f"Ledger Registry Error: Internal log insertion failure: {db_err}")
+
+    # =============================================================================
+    # SECRET ADMIN EXCLUSIVE DASHBOARD VIEW PANEL
+    # =============================================================================
+    if st.session_state.user_uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1":
+        st.write("---")
+        st.markdown("### 👑 Master Corporate Order Manifest Desk")
+        st.caption("Secure visibility module open exclusively to your master administrator account UID.")
+        
+        try:
+            orders_ref = db.collection("orders").order_by("timestamp_created", direction=firestore.Query.DESCENDING).stream()
+            orders_list = []
+            for doc in orders_ref:
+                o_data = doc.to_dict()
+                orders_list.append({
+                    "Order Code Reference": doc.id,
+                    "Buyer Unique Key": o_data.get("buyer_uid"),
+                    "Product Item": o_data.get("inventory_line"),
+                    "Bottles Bought": o_data.get("volume_purchased"),
+                    "Unit Cost": f"RM {o_data.get('calculated_unit_rate')}",
+                    "Total Settle Value": f"RM {o_data.get('total_ringgit_value')}",
+                    "Payment Channel Node": o_data.get("payment_node"),
+                    "Status Log": o_data.get("settlement_status")
+                })
+            if orders_list:
+                st.dataframe(orders_list, use_container_width=True)
+            else:
+                st.info("Database Active: No customer product placement processing orders submitted yet.")
+        except Exception as order_err:
+            st.caption(f"Waiting for system order configurations to deploy: {order_err}")
 
 # =============================================================================
-# 8. MASTER CONTROL APP EXECUTION ENGINE FLOW
+# 7. MASTER CONTROL APP EXECUTION ENGINE FLOW
 # =============================================================================
 if not st.session_state.logged_in:
     render_auth_portal()
@@ -373,7 +327,7 @@ else:
     render_store_front()
 
 # =============================================================================
-# 9. DEVELOPER LIVE DATABASE INSPECTION DESK
+# 8. DEVELOPER LIVE DATABASE INSPECTION DESK
 # =============================================================================
 st.write("---")
 st.markdown("### 🛠️ Developer Live Database Inspection Desk")
@@ -393,6 +347,7 @@ if st.checkbox("Show Live Registered Users Ledger (Firestore View)"):
                 "Settlement Bank": bank_info.get("bank_name"),
                 "Account No.": bank_info.get("account_number"),
                 "Upline ID Reference": user_dict.get("upline_id"),
+                "System Role Tag": user_dict.get("role"),
                 "System Timestamp": str(user_dict.get("created_at"))
             })
             
