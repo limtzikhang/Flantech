@@ -70,61 +70,68 @@ def render_login_page():
     
     login_btn = st.button("Login to Account")
     
-        if login_btn:
-            # Fully sanitize inputs: eliminate trailing whitespaces and strip formatting text
-            cleaned_username = username.replace("+", "").replace(" ", "").strip().lower()
-            cleaned_password = input_password.strip().lower()
+    if login_btn:
+        st.session_state.input_user = username
+        st.session_state.input_pass = input_password
+
+        # Completely clean spaces, symbols, and force lowercase parameters
+        cleaned_username = username.replace("+", "").replace(" ", "").strip().lower()
+        cleaned_password = input_password.strip().lower()
+        
+        if not cleaned_username or not cleaned_password:
+            st.error("Please fill in your login credentials.")
+            return
+
+        # ====================================================================
+        # IMMUTABLE ADMIN GATEWAY (Applies to both Email and Phone variations)
+        # ====================================================================
+        is_admin_phone = (cleaned_username == "60164191861" and cleaned_password == "admin")
+        is_admin_email = (cleaned_username == "limtzikhang@gmail.com" and cleaned_password == "admin")
+        
+        if is_admin_phone or is_admin_email:
+            st.session_state.logged_in = True
+            st.session_state.is_admin = True
+            st.session_state.user_id = "ADMIN-USER"
             
-            # ====================================================================
-            # DUAL MASTER ADMIN GATEWAY LOGIC (Bypasses Firebase Safely)
-            # ====================================================================
-            is_admin_phone = (cleaned_username == "60164191861" and cleaned_password == "admin")
-            is_admin_email = (cleaned_username == "limtzikhang@gmail.com" and cleaned_password == "admin")
+            # Reset values upon successful execution entry
+            st.session_state.input_user = ""
+            st.session_state.input_pass = ""
             
-            if is_admin_phone or is_admin_email:
-                st.session_state.logged_in = True
-                st.session_state.is_admin = True
-                st.session_state.user_id = "ADMIN-USER"
-                
-                # Clear raw tracking cache fields for security purposes
-                st.session_state.input_user = ""
-                st.session_state.input_pass = ""
-                
-                st.success("Welcome back, Master Admin!")
-                time.sleep(0.5)
-                st.rerun()
-                return  # Force kill thread loop to ensure no fall-through to Firebase failure
-                
-            # ====================================================================
-            # STANDARD CONSUMER CUSTOMER BACKEND FIRESTORE LOOKUP
-            # ====================================================================
-            else:
-                try:
-                    user_found = None
-                    if "@" in cleaned_username:
-                        users_query = db.collection("users").where("email", "==", cleaned_username).limit(1).stream()
-                        for doc in users_query:
-                            user_found = doc.to_dict()
-                    else:
-                        users_query = db.collection("users").where("phone", "==", cleaned_username).limit(1).stream()
-                        for doc in users_query:
-                            user_found = doc.to_dict()
-                            
-                    if user_found and cleaned_password == "123456":
-                        st.session_state.logged_in = True
-                        st.session_state.is_admin = False
-                        st.session_state.user_id = user_found["member_id"]
+            st.success("Welcome back, Master Admin!")
+            time.sleep(0.5)
+            st.rerun()
+            return  # Stop execution immediately
+            
+        # ====================================================================
+        # STANDARD CUSTOMER BACKEND FIRESTORE LOOKUP
+        # ====================================================================
+        else:
+            try:
+                user_found = None
+                if "@" in cleaned_username:
+                    users_query = db.collection("users").where("email", "==", cleaned_username).limit(1).stream()
+                    for doc in users_query:
+                        user_found = doc.to_dict()
+                else:
+                    users_query = db.collection("users").where("phone", "==", cleaned_username).limit(1).stream()
+                    for doc in users_query:
+                        user_found = doc.to_dict()
                         
-                        st.session_state.input_user = ""
-                        st.session_state.input_pass = ""
-                        
-                        st.success("Successfully logged in!")
-                        time.sleep(0.5)
-                        st.rerun()
-                    else:
-                        st.error("Invalid credentials provided. Check email/phone number or password.")
-                except Exception as e:
-                    st.error(f"System Network Error: {str(e)}")
+                if user_found and cleaned_password == "123456":
+                    st.session_state.logged_in = True
+                    st.session_state.is_admin = False
+                    st.session_state.user_id = user_found["member_id"]
+                    
+                    st.session_state.input_user = ""
+                    st.session_state.input_pass = ""
+                    
+                    st.success("Successfully logged in!")
+                    time.sleep(0.5)
+                    st.rerun()
+                else:
+                    st.error("Invalid credentials provided. Check email/phone number or password.")
+            except Exception as e:
+                st.error(f"System Network Error: {str(e)}")
 
 
 
@@ -413,31 +420,18 @@ if not st.session_state.logged_in:
     else:
         render_signup_page()
 else:
-    # 1. Build choices dynamically based on privileges
+    # Build options array dynamically depending on privileges 
     menu_options = ["User Dashboard View", "Checkout Store"]
+    
     if st.session_state.get("is_admin", False):
-        menu_options.insert(0, "🛡️ Admin Dashboard")
+        menu_options.insert(0, "🛡️ Admin Dashboard")  # Injects the link into the left pane
         
     page_selection = st.sidebar.radio("Navigation", menu_options)
     
-    # 2. Corrected Safe Execution Tree Router
     if page_selection == "🛡️ Admin Dashboard":
+        # Redirect the user to the dashboard function safely
         render_admin_dashboard()
-        
     elif page_selection == "User Dashboard View":
-        # SAFETY CHECKPOINT: If admin accidentally clicks customer view, protect against Firebase crash
-        if st.session_state.get("is_admin", False):
-            st.title("👤 My Account Profile")
-            st.info("System Privileges: Master Administrator Account Active.")
-            st.write(f"**Admin Instance User ID:** `{st.session_state.user_id}`")
-            if st.button("Log Out"):
-                st.session_state.logged_in = False
-                st.session_state.user_id = None
-                st.session_state.is_admin = False
-                st.rerun()
-        else:
-            # Regular customer profiles can execute standard Firestore checks safely
-            render_account_profile_page()
-            
+        render_account_profile_page()
     elif page_selection == "Checkout Store":
         render_checkout_flow()
