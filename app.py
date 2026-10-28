@@ -187,9 +187,9 @@ def render_auth_portal():
                 
             try:
                 # -------------------------------------------------------------
-                # FIXED AUTHENTICATION BRIDGE VIA STABLE CLIENT WEB API
+                # SECURE IDENTITY PROVISIONING VIA EXPLICIT CLIENT ENDPOINT
                 # -------------------------------------------------------------
-                # This directly routes to the explicit signup endpoint, stopping all 404 errors dead.
+                # This pulls your API key dynamically from your cloud secrets, bypassing the 404 SDK routing bug
                 api_url = f"https://googleapis.com{st.secrets['FIREBASE_WEB_API_KEY']}"
                 payload = {
                     "email": new_email,
@@ -200,15 +200,13 @@ def render_auth_portal():
                 response = requests.post(api_url, json=payload, timeout=10)
                 res_data = response.json()
                 
-                # Check if Google Identity servers accepted or flagged the user request
                 if "error" in res_data:
                     st.error(f"Registration Refused: {res_data['error']['message']}")
                     return
                 
-                # Retrieve the newly provisioned unique ID
                 new_uid = res_data["localId"]
                 
-                # Update display name safely behind the scenes
+                # Update display name profile properties via API
                 update_url = f"https://googleapis.com{st.secrets['FIREBASE_WEB_API_KEY']}"
                 requests.post(update_url, json={
                     "idToken": res_data["idToken"],
@@ -217,7 +215,7 @@ def render_auth_portal():
                 }, timeout=10)
                 
                 # -------------------------------------------------------------
-                # COMMIT TARGET OBJECT DATA DIRECTLY TO FIRESTORE 
+                # COMMIT RECIPIENT PROFILE DIRECTLY TO FIRESTORE
                 # -------------------------------------------------------------
                 structured_payload = {
                     "uid": new_uid,
@@ -233,7 +231,6 @@ def render_auth_portal():
                     "created_at": firestore.SERVER_TIMESTAMP
                 }
                 
-                # Write to the specific database instance you linked above
                 db.collection("users").document(new_uid).set(structured_payload)
                 st.success("Account successfully created! Switch to the 'Partner Sign In' tab to log in.")
                 
