@@ -5,21 +5,17 @@ import streamlit as st
 
 if not firebase_admin._apps:
     if "firebase" in st.secrets:
-        # Pull secret parameters dynamically
+        # Convert the TOML multi-line data map directly to a credentials dict
         firebase_dict = dict(st.secrets["firebase"])
-        
-        # FIX FOR NEWLINE CONFLICTS:
-        # Ensures internal string data transforms escape codes cleanly
-        if "private_key" in firebase_dict:
-            firebase_dict["private_key"] = firebase_dict["private_key"].replace("\\n", "\n")
-            
         cred = credentials.Certificate(firebase_dict)
         firebase_admin.initialize_app(cred)
     else:
+        # Local computer fallback connection rule
         cred = credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-078f0e696c.json")
         firebase_admin.initialize_app(cred)
 
 db = firestore.client()
+
 
 
 
