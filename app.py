@@ -8,18 +8,27 @@ import requests
 # =============================================================================
 # 1. CORE BACKEND INITIALIZATION (FIREBASE & FIRESTORE)
 # =============================================================================
-# Place your serviceAccountKey.json file in the root project folder directory.
 if not firebase_admin._apps:
     try:
-        # Hybrid secure parsing for local deployment vs production hosting servers
+        # Secure parsing for cloud deployment environments using secrets engine
         if "firebase_service_account" in st.secrets:
             cred_dict = dict(st.secrets["firebase_service_account"])
             cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
         else:
-            cred = credentials.Certificate("serviceAccountKey.json")
-        firebase_admin.initialize_app(cred)
+            # Fallback path checking for local repository structures
+            base_dir = os.path.dirname(os.path.abspath(__file__))
+            key_path = os.path.join(base_dir, "serviceAccountKey.json")
+            
+            if os.path.exists(key_path):
+                cred = credentials.Certificate(key_path)
+                firebase_admin.initialize_app(cred)
+            else:
+                st.error("🚨 Configuration Error: Firebase keys missing. Please configure Streamlit Secrets or upload serviceAccountKey.json.")
+                st.stop()
     except Exception as e:
         st.error(f"System Critical Initialization Error: {e}")
+        st.stop()
 
 db = firestore.client()
 
@@ -75,12 +84,10 @@ def request_toyyibpay_fpx(name, email, phone, amount, desc):
     """
     url = 'https://toyyibpay.com'
     
-    # Standard security handling properties safely matched to application environment profiles
     try:
         secret_key = st.secrets["payment"]["toyyibpay_secret"]
         cat_code = st.secrets["payment"]["toyyibpay_category"]
     except Exception:
-        # Fallback tracking strings to ensure validation runtime doesn't break locally
         secret_key = "MOCK_SECRET_KEY"
         cat_code = "MOCK_CAT_CODE"
 
@@ -100,7 +107,6 @@ def request_toyyibpay_fpx(name, email, phone, amount, desc):
         'billPhone': phone
     }
     
-    # Direct integration simulation fallback layer for sandbox environments
     if secret_key == "MOCK_SECRET_KEY":
         return {"status": "success", "billURL": "https://toyyibpay.com"}
         
@@ -126,10 +132,7 @@ def render_auth_portal():
         
         if st.button("Verify Identity & Enter", type="primary", use_container_width=True):
             try:
-                # Retrieve data from Firebase Auth record
                 user_auth_record = auth.get_user_by_email(login_email)
-                
-                # Cross-reference with database node metadata
                 user_ref = db.collection("users").document(user_auth_record.uid).get()
                 
                 if user_ref.exists:
@@ -150,12 +153,11 @@ def render_auth_portal():
         st.markdown("### Affiliate Account Registration")
         st.caption("All fields marked with (*) are required for internal compliance and payment settlements.")
         
-        # Grid array layouts organizing required registration information
         col_left, col_right = st.columns(2)
         
         with col_left:
             new_name = st.text_input("Legal Name (matching Identity & Bank Card) *")
-            new_email = st.text_input("Active Primary Email Card *")
+            new_email = st.text_input("Active Primary Email Address *")
             new_mobile = st.text_input("Mobile Phone Number (e.g., +601XXXXXXXX) *")
             new_password = st.text_input("Set Security Password (Min 6 Characters) *", type="password")
             
@@ -170,20 +172,17 @@ def render_auth_portal():
             upline_code = st.text_input("Upline Referrer ID / Affiliate Code (Optional)")
 
         if st.button("Register & Verify Account Profile", use_container_width=True):
-            # Strict application rule structural validation logic checks
             if not (new_name and new_email and new_mobile and new_password and bank_account):
                 st.error("Verification halted: Please complete all mandatory fields.")
                 return
                 
             try:
-                # Instantiate secure entity inside the centralized Firebase authentication matrix
                 created_user = auth.create_user(
                     email=new_email,
                     password=new_password,
                     display_name=new_name
                 )
                 
-                # Hierarchical design data blocks configured for immediate scale to MLM structures
                 structured_payload = {
                     "uid": created_user.uid,
                     "name": new_name,
@@ -194,11 +193,10 @@ def render_auth_portal():
                         "account_number": bank_account
                     },
                     "upline_id": upline_code.strip() if upline_code.strip() else None,
-                    "role": "b2c",  # Initial tier value system tag assignments
+                    "role": "b2c",
                     "created_at": firestore.SERVER_TIMESTAMP
                 }
                 
-                # Map persistent collection rows directly onto Cloud Firestore database nodes
                 db.collection("users").document(created_user.uid).set(structured_payload)
                 st.success("Account successfully created. Switch to the 'Partner Sign In' tab to log in.")
                 
@@ -208,7 +206,6 @@ def render_auth_portal():
 # 6. RENDER STORE SYSTEM PLATFORM (PRODUCT PANELS & SHOPPING CART)
 # =============================================================================
 def render_store_front():
-    # Sidebar control desk settings configurations
     st.sidebar.title("🛡️ Partner Workspace")
     st.sidebar.markdown(f"**Affiliate User:**\n{st.session_state.user_name}")
     st.sidebar.markdown(f"**Security Code ID:**\n`{st.session_state.user_uid}`")
@@ -222,7 +219,6 @@ def render_store_front():
         st.session_state.user_mobile = ""
         st.rerun()
 
-    # Core E-Commerce Display Windows
     st.title("🛒 Flantech Procurement Center")
     st.markdown("##### Premium Patrick Flanagan Formulations Portfolio")
     st.write("")
@@ -231,27 +227,25 @@ def render_store_front():
     
     with col_p1:
         st.markdown("### Formulation A: Mega H")
-        st.image("product/mega_h.jpg", width=280, fallback="💊 [Mega H Asset Image Missing - Check repo product/ folder]")
-        st.caption("Active Silica Hydride structural antioxidant formulation driving micro-cluster hydration levels inside cell membranes.")
+        st.image("product/mega_h.jpg", width=280, fallback="💊 [Mega H Asset Image Missing]")
+        st.caption("Active Silica Hydride antioxidant formulation driving micro-cluster hydration levels inside cell membranes.")
         
     with col_p2:
         st.markdown("### Formulation B: Crystal Energy")
-        st.image("product/crystal_energy.jpg", width=280, fallback="💧 [Crystal Energy Asset Image Missing - Check repo product/ folder]")
-        st.caption("Liquid structured fluid catalyst component drops modifying surface tension dynamics of local drinking water matrix profiles.")
+        st.image("product/crystal_energy.jpg", width=280, fallback="💧 [Crystal Energy Asset Image Missing]")
+        st.caption("Liquid structured fluid catalyst component drops modifying surface tension dynamics of local drinking water.")
 
     # =============================================================================
-    # NEW: MARKETING VIDEO PORTFOLIO SHOWCASE
+    # MARKETING VIDEO PORTFOLIO SHOWCASE
     # =============================================================================
     st.write("---")
     st.markdown("### 📺 Flantech Hybrid Video Presentation Library")
     st.caption("Review our technical breakdown and marketing system walkthrough videos below:")
     
-    # Render a 3-column media dashboard map for clean scannability
     v_col1, v_col2, v_col3 = st.columns(3)
     
     with v_col1:
-        st.markdown("##### 📹 Presentation Clip 1")
-        # Ensure your filenames in the video/ directory match exactly (case-sensitive)
+        st.markdown("##### 📹 System Introduction")
         st.video("video/video1.mp4", format="video/mp4", start_time=0)
         
     with v_col2:
@@ -264,16 +258,11 @@ def render_store_front():
 
     st.write("---")
     st.markdown("### 📊 Live Processing Allocation Interface")
-
-    
-    # Setup step input parameters constrained by local distribution laws
     target_item = st.selectbox("Selected Catalog Line Item", ["Patrick Flanagan: Mega H", "Patrick Flanagan: Crystal Energy"])
     purchase_qty = st.number_input("Order Size Matrix Allocation (Max 50 Units)", min_value=1, max_value=50, value=1, step=1)
     
-    # Calculate real-time financial tracking figures
     cost_per_unit, net_aggregated_cost = calculate_price(purchase_qty)
     
-    # Display processing values cleanly to the operator
     metric_c1, metric_c2, metric_c3 = st.columns(3)
     with metric_c1:
         st.metric(label="Calculated Account Assignment", value="Corporate B2B Wholesale" if purchase_qty == 50 else ("Wholesale Volume Tier" if purchase_qty > 1 else "B2C Consumer Retail"))
@@ -293,7 +282,6 @@ def render_store_front():
     if st.button("Authorize Payment & Lock Order Request", type="primary", use_container_width=True):
         st.write("Contacting Malaysian payment clearing networks... Please wait.")
         
-        # Trigger the functional ToyyibPay transaction creation endpoint
         payment_gateway_response = request_toyyibpay_fpx(
             name=st.session_state.user_name,
             email=st.session_state.user_email,
@@ -303,7 +291,6 @@ def render_store_front():
         )
         
         if payment_gateway_response.get("status") == "success" or "billURL" in payment_gateway_response:
-            # Structuring standard historical accounting blocks for clean database auditing
             ledger_block = {
                 "buyer_uid": st.session_state.user_uid,
                 "inventory_line": target_item,
@@ -317,7 +304,6 @@ def render_store_front():
             }
             
             try:
-                # Inject transactional transaction metrics block into centralized database tables
                 db.collection("orders").add(ledger_block)
                 st.balloons()
                 st.success(f"Order Registered! Please settle payment through the secure portal below.")
@@ -334,3 +320,35 @@ if not st.session_state.logged_in:
     render_auth_portal()
 else:
     render_store_front()
+
+# =============================================================================
+# 9. DEVELOPER LIVE DATABASE INSPECTION DESK
+# =============================================================================
+st.write("---")
+st.markdown("### 🛠️ Developer Live Database Inspection Desk")
+
+if st.checkbox("Show Live Registered Users Ledger (Firestore View)"):
+    try:
+        users_ref = db.collection("users").stream()
+        users_list = []
+        for doc in users_ref:
+            user_dict = doc.to_dict()
+            bank_info = user_dict.get("bank_details", {})
+            users_list.append({
+                "User UID": doc.id,
+                "Legal Name": user_dict.get("name"),
+                "Email Card": user_dict.get("email"),
+                "Mobile Phone": user_dict.get("mobile"),
+                "Settlement Bank": bank_info.get("bank_name"),
+                "Account No.": bank_info.get("account_number"),
+                "Upline ID Reference": user_dict.get("upline_id"),
+                "System Timestamp": str(user_dict.get("created_at"))
+            })
+            
+        if users_list:
+            st.dataframe(users_list, use_container_width=True)
+            st.caption(f"Total Registered Nodes Tracked: {len(users_list)}")
+        else:
+            st.warning("Database Connection Active: But 'users' collection is currently empty.")
+    except Exception as read_err:
+        st.error(f"Failed to query local data tables: {read_err}")
