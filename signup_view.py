@@ -6,7 +6,7 @@ import random
 from database import verify_upline, db
 
 st.title("📝 Create an Account")
-st.markdown("Please fill out the form below to complete registration.")
+st.markdown("Please fill out the form below to complete registration.")   
 
 MALAYSIA_BANKS = [
     "Maybank (Malayan Banking Berhad)", "CIMB Bank", "Public Bank", "RHB Bank", 
@@ -40,11 +40,12 @@ with st.form("signup_form"):
     
     st.markdown("---")
     st.subheader("Sponsor / Referral Details (Optional)")
+    st.info("💡 **Tip:** Fill in **any one (1) option below** to link your sponsor and qualify for your one-time 6-bottle registration free gift reward!")
     
     # 4. Optional Upline Fields
-    upline_id = st.text_input("Upline ID")
-    upline_phone = st.text_input("Upline Phone Number")
-    upline_name = st.text_input("Upline Name")
+    upline_id = st.text_input("Upline ID (Fill any 1 option)")
+    upline_phone = st.text_input("Upline Phone Number (Fill any 1 option)")
+    upline_name = st.text_input("Upline Name (Optional reference)")
     
     submit_button = st.form_submit_button("Register Now")
     
