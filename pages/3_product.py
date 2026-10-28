@@ -4,6 +4,10 @@ import os
 import firebase_admin
 from firebase_admin import firestore
 
+if not st.session_state.get("logged_in", False):
+    st.warning("🔒 Please return to the Home Page and sign in to access the product catalog.")
+    st.stop() # Immediately freezes the unauthorized view from rendering
+
 db = firestore.client()
 
 # Update points/cash totals inside the user's secret database row document node
