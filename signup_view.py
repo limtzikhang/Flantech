@@ -26,15 +26,16 @@ with st.form("signup_form", clear_on_submit=False):
     phone = st.text_input("Mobile Phone Number * (e.g. 60123456789)")
     full_name = st.text_input("Full Name (as per IC) *")
     
+    # NEW SECURE ACCOUNT PASSWORD ENTRY FIELD
+    password = st.text_input("Create Account Password *", type="password", placeholder="Minimum 6 characters recommended")
+    
     # Compulsory Selection Elements
     gender = st.selectbox("Gender *", options=["", "Male", "Female"])
     
-    # =====================================================================
-    # FIXED CALENDAR FLOOR SET TO 1940
-    # =====================================================================
-    min_birth_date = date(1940, 1, 1)   # The calendar options start from 1940
-    max_birth_date = date.today()        # Users can select up to today's date
-    default_view_date = date(2000, 1, 1) # Sets the initial calendar year to 2000 for easy clicking
+    # 18+ Age Constraint Selection Strategy
+    min_birth_date = date(1940, 1, 1)
+    max_birth_date = date.today()
+    default_view_date = date(2000, 1, 1)
     
     birth_date = st.date_input(
         "Date of Birth *", 
@@ -44,9 +45,6 @@ with st.form("signup_form", clear_on_submit=False):
     )
     
     bank_name = st.selectbox("Bank Name *", options=[""] + MALAYSIA_BANKS)
-
-
-
     bank_account = st.text_input("Bank Account Number *")
     
     st.markdown("---")
@@ -60,8 +58,8 @@ with st.form("signup_form", clear_on_submit=False):
     submit_button = st.form_submit_button("Register Now", use_container_width=True)
     
     if submit_button:
-        # Step 1: Compulsory Field Validation Check
-        if not email or not phone or not full_name or not bank_account or not gender or not bank_name:
+        # Step 1: Compulsory Field Validation Check (Including the New Password verification check)
+        if not email or not phone or not full_name or not password or not bank_account or not gender or not bank_name:
             st.error("❌ Registration Blocked: Please fill in all fields marked with an asterisk (*).")
             
         else:
@@ -87,6 +85,7 @@ with st.form("signup_form", clear_on_submit=False):
                             "email": email.strip().lower(),
                             "phone": phone.strip(),
                             "full_name": full_name.strip(),
+                            "password": password.strip(),  # <-- SAVES THE USER'S CUSTOM PASSWORD SECURELY
                             "gender": gender,
                             "birth_date": birth_date.strftime("%Y-%m-%d"),
                             "bank_name": bank_name,
@@ -99,18 +98,12 @@ with st.form("signup_form", clear_on_submit=False):
                             "free_gift_claimed": False
                         }
                         
-                        # ... (This is the database write code inside your signup_view.py) ...
                         db.collection("users").document(new_member_id).set(user_data)
-                        
-                        # 1. Output the registration toast notification
                         st.success(f"🎉 **Registration Successful!** Your unique Member ID is: **{new_member_id}**")
-                        st.balloons() # Dynamic celebratory graphics asset
+                        st.balloons()
                         
-                        # 2. FORCE AUTOMATIC REDIRECT TO LOGIN VIEW
                         st.info("🔄 Redirecting to the Login screen...")
-                        time.sleep(2.0) # Allow them 2 seconds to write down their Member ID string
-                        
-                        # Swaps the left pane state and pushes them to your home_view.py script seamlessly
+                        time.sleep(2.0)
                         st.switch_page("home_view.py")
                         
                     except Exception as e:

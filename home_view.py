@@ -13,13 +13,13 @@ MALAYSIA_BANKS = [
 
 def render_login_view():
     st.title("🔐 Sign In")
-    st.markdown("Access your Flantech affiliate network distribution portal.")
+    st.markdown("Access your Mega H Global distribution portal.")
 
     username = st.text_input("Username (Email or Phone Number)").strip()
     input_password = st.text_input("Password", type="password")
     
     if st.button("Login to Account", use_container_width=True):
-        # 1. Sanitize text string fields completely
+        # Clean inputs: eliminate structural spaces, symbols, and force lowercasing
         cleaned_username = username.replace("+", "").replace(" ", "").strip().lower()
         cleaned_password = input_password.strip().lower()
         
@@ -28,7 +28,7 @@ def render_login_view():
             return
 
         # ====================================================================
-        # IMMUTABLE HARDCODED ADMIN CHECKPOINT (Bypasses Firebase query)
+        # 1. FIXED ADMIN GATEWAY (Bypasses Firestore query entirely)
         # ====================================================================
         is_admin_phone = (cleaned_username == "60164191861" and cleaned_password == "admin")
         is_admin_email = (cleaned_username == "limtzikhang@gmail.com" and cleaned_password == "admin")
@@ -37,37 +37,54 @@ def render_login_view():
             st.session_state.logged_in = True
             st.session_state.is_admin = True
             st.session_state.user_id = "ADMIN-USER"
-            st.success("Welcome back, Master Admin! Loading dashboard...")
+            st.success("Welcome back, Master Admin!")
             time.sleep(0.5)
             st.rerun()
-            return  # Prevents falling through to Firebase lookup code blocks
+            return
 
         # ====================================================================
-        # REGULAR CUSTOMER BACKEND DATABASE QUERY
+        # 2. DYNAMIC CUSTOMER LOGIN (Allows Email or Phone lookup streams)
         # ====================================================================
         else:
             try:
                 user_found = None
+                
+                # Check A: Try routing as an Email address token match
                 if "@" in cleaned_username:
-                    users_query = db.collection("users").where("email", "==", cleaned_username).limit(1).stream()
+                    db.where("email", "==", cleaned_username)
+                    users_query = db.execute_query()
                     for doc in users_query:
                         user_found = doc.to_dict()
-                else:
-                    users_query = db.collection("users").where("phone", "==", cleaned_username).limit(1).stream()
+                
+                # Check B: Fallback string matching via Phone Number
+                if not user_found:
+                    db.where("phone", "==", cleaned_username)
+                    users_query = db.execute_query()
                     for doc in users_query:
                         user_found = doc.to_dict()
 
-                if user_found and cleaned_password == "123456":
-                    st.session_state.logged_in = True
-                    st.session_state.is_admin = False
-                    st.session_state.user_id = user_found["member_id"]
-                    st.success("Successfully logged in!")
-                    time.sleep(0.5)
-                    st.rerun()
+                # =====================================================================
+                # VERIFY LOGINS USING CUSTOM SAVED PASSWORDS DYNAMICALLY
+                # =====================================================================
+                if user_found:
+                    # Fetch the user's custom saved password string from Firestore
+                    saved_password = user_found.get("password", "")
+                    
+                    # Match inputs exactly against the user's recorded database credential passport
+                    if cleaned_password == saved_password:
+                        st.session_state.logged_in = True
+                        st.session_state.is_admin = False
+                        st.session_state.user_id = user_found["member_id"]
+                        st.success("Successfully logged in!")
+                        time.sleep(0.5)
+                        st.rerun()
+                    else:
+                        st.error("Invalid credentials provided. Check your email/phone number or password.")
                 else:
-                    st.error("Invalid credentials provided.")
+                    st.error("Invalid credentials provided. Account record not found in system.")
             except Exception as e:
                 st.error(f"System Network Error: {str(e)}")
+
 
 
 def render_profile_view():
