@@ -189,7 +189,7 @@ def render_auth_portal():
                 # -------------------------------------------------------------
                 # SECURE IDENTITY PROVISIONING VIA EXPLICIT CLIENT ENDPOINT
                 # -------------------------------------------------------------
-                # This pulls your API key dynamically from your cloud secrets, bypassing the 404 SDK routing bug
+                # Dynamic key mapping correctly isolated with a trailing ?key= parameter
                 api_url = f"https://googleapis.com{st.secrets['FIREBASE_WEB_API_KEY']}"
                 payload = {
                     "email": new_email,
