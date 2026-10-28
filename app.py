@@ -10,11 +10,13 @@ import requests
 # =============================================================================
 if not firebase_admin._apps:
     try:
+        # Secure parsing for cloud deployment environments using secrets engine
         if "firebase_service_account" in st.secrets:
             cred_dict = dict(st.secrets["firebase_service_account"])
             cred = credentials.Certificate(cred_dict)
             firebase_admin.initialize_app(cred)
         else:
+            # Fallback path checking for local repository structures
             base_dir = os.path.dirname(os.path.abspath(__file__))
             key_path = os.path.join(base_dir, "serviceAccountKey.json")
             
@@ -39,6 +41,7 @@ st.set_page_config(
     layout="wide"
 )
 
+# Persistent session keys checking across the Streamlit lifecycle
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "user_email" not in st.session_state:
@@ -95,7 +98,7 @@ def request_toyyibpay_fpx(name, email, phone, amount, desc):
         'billDescription': desc,
         'billPriceSetting': 1,
         'billPayeeInfo': 1,
-        'billAmount': int(amount * 100),
+        'billAmount': int(amount * 100),  # Converts RM to Sen (e.g. RM248 -> 24800)
         'billReturnUrl': 'https://github.com',
         'billCallbackUrl': 'https://your-api-receiver.com',
         'billExternalReferenceNo': f"FT-{os.urandom(4).hex().upper()}",
@@ -131,14 +134,9 @@ def render_auth_portal():
             try:
                 user_auth_record = auth.get_user_by_email(login_email)
                 user_ref = db.collection("users").document(user_auth_record.uid).get()
-                is_admin_uid = (user_auth_record.uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1")
                 
                 if user_ref.exists:
                     user_profile = user_ref.to_dict()
-                    if is_admin_uid and user_profile.get("role") != "admin":
-                        db.collection("users").document(user_auth_record.uid).update({"role": "admin"})
-                        user_profile["role"] = "admin"
-                        
                     st.session_state.logged_in = True
                     st.session_state.user_email = login_email
                     st.session_state.user_uid = user_auth_record.uid
@@ -147,31 +145,16 @@ def render_auth_portal():
                     st.success(f"Access granted. Welcome {st.session_state.user_name}")
                     st.rerun()
                 else:
-                    assigned_role = "admin" if is_admin_uid else "b2c"
-                    structured_payload = {
-                        "uid": user_auth_record.uid,
-                        "name": "Lim Tzik Hang" if is_admin_uid else "Partner",
-                        "email": login_email,
-                        "mobile": "+601XXXXXXXX",
-                        "bank_details": {"bank_name": "Maybank", "account_number": "0000000000"},
-                        "upline_id": None,
-                        "role": assigned_role,
-                        "created_at": firestore.SERVER_TIMESTAMP
-                    }
-                    db.collection("users").document(user_auth_record.uid).set(structured_payload)
-                    st.session_state.logged_in = True
-                    st.session_state.user_email = login_email
-                    st.session_state.user_uid = user_auth_record.uid
-                    st.session_state.user_name = structured_payload["name"]
-                    st.rerun()
-            except Exception as login_err:
-                st.error(f"Authentication failed: {login_err}")
+                    st.error("Profile mismatch detected inside core database records.")
+            except Exception:
+                st.error("Authentication failed. Check your security entries or email verification status.")
 
     with tab_signup:
         st.markdown("### Affiliate Account Registration")
         st.caption("All fields marked with (*) are required for internal compliance and payment settlements.")
         
         col_left, col_right = st.columns(2)
+        
         with col_left:
             new_name = st.text_input("Legal Name (matching Identity & Bank Card) *")
             new_email = st.text_input("Active Primary Email Address *")
@@ -194,24 +177,25 @@ def render_auth_portal():
                 return
                 
             try:
-                # Retrieve validation parameter safely from the Streamlit vault variables
+                # 1. Pull the key string safely from your Streamlit dashboard secrets
                 api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
                 
-                # Dynamic targeted API registration route
-                api_url = "https://googleapis.com"
+                # 2. Hardcode the absolute URL endpoint string explicitly to block routing bugs
+                api_url = "https://identitytoolkit.googleapis.com/v1/accounts:signUp"
                 params = {"key": api_key}
-                headers = {"Content-Type": "application/json"}
                 
-                # FIXED PLATFORM STRUCTURE: We pass displayName natively inside the initial creation block payload
+                # 3. CRITICAL FIX: Add explicit JSON application header values
+                headers = {"Content-Type": "application/json"}
                 payload = {
                     "email": new_email,
                     "password": new_password,
-                    "displayName": new_name,
                     "returnSecureToken": True
                 }
                 
+                # Dispatch the secure post execution sequence
                 response = requests.post(api_url, params=params, json=payload, headers=headers, timeout=10)
                 
+                # 4. SAFETY GUARD: Intercept HTML block pages cleanly before JSON parsing triggers
                 if response.status_code != 200:
                     st.error(f"🚨 Google Server Rejection (HTTP {response.status_code})")
                     st.markdown(f"**Error Details:** `{response.text[:200]}`")
@@ -220,8 +204,13 @@ def render_auth_portal():
                 res_data = response.json()
                 new_uid = res_data["localId"]
                 
-                # Check for admin UID match during structural signup properties validation
-                assigned_role = "admin" if new_uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1" else "b2c"
+                # Explicit update profile name parameters mapping
+                update_url = "https://googleapis.com"
+                requests.post(update_url, params=params, json={
+                    "idToken": res_data["idToken"],
+                    "displayName": new_name,
+                    "returnSecureToken": True
+                }, headers=headers, timeout=10)
                 
                 structured_payload = {
                     "uid": new_uid,
@@ -233,7 +222,7 @@ def render_auth_portal():
                         "account_number": bank_account
                     },
                     "upline_id": upline_code.strip() if upline_code.strip() else None,
-                    "role": assigned_role,
+                    "role": "b2c",
                     "created_at": firestore.SERVER_TIMESTAMP
                 }
                 
@@ -242,6 +231,7 @@ def render_auth_portal():
                 
             except Exception as system_err:
                 st.error(f"Enrolment halted by system validation server: {system_err}")
+
 # =============================================================================
 # 6. RENDER STORE SYSTEM PLATFORM (PRODUCT PANELS & SHOPPING CART)
 # =============================================================================
@@ -353,36 +343,6 @@ def render_store_front():
         else:
             st.error(f"Gateway Interface Fault: Clearing network returned error: {payment_gateway_response.get('message')}")
 
-    # =============================================================================
-    # SECRET ADMIN EXCLUSIVE DASHBOARD VIEW PANEL
-    # =============================================================================
-    if st.session_state.user_uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1":
-        st.write("---")
-        st.markdown("### 👑 Master Corporate Order Manifest Desk")
-        st.caption("Secure visibility module open exclusively to your master administrator account UID.")
-        
-        try:
-            orders_ref = db.collection("orders").order_by("timestamp_created", direction=firestore.Query.DESCENDING).stream()
-            orders_list = []
-            for doc in orders_ref:
-                o_data = doc.to_dict()
-                orders_list.append({
-                    "Order Code Reference": doc.id,
-                    "Buyer Unique Key": o_data.get("buyer_uid"),
-                    "Product Item": o_data.get("inventory_line"),
-                    "Bottles Bought": o_data.get("volume_purchased"),
-                    "Unit Cost": f"RM {o_data.get('calculated_unit_rate')}",
-                    "Total Settle Value": f"RM {o_data.get('total_ringgit_value')}",
-                    "Payment Channel Node": o_data.get("payment_node"),
-                    "Status Log": o_data.get("settlement_status")
-                })
-            if orders_list:
-                st.dataframe(orders_list, use_container_width=True)
-            else:
-                st.info("Database Active: No customer product placement processing orders submitted yet.")
-        except Exception as order_err:
-            st.caption(f"Waiting for system order configurations to deploy: {order_err}")
-
 # =============================================================================
 # 8. MASTER CONTROL APP EXECUTION ENGINE FLOW
 # =============================================================================
@@ -412,7 +372,6 @@ if st.checkbox("Show Live Registered Users Ledger (Firestore View)"):
                 "Settlement Bank": bank_info.get("bank_name"),
                 "Account No.": bank_info.get("account_number"),
                 "Upline ID Reference": user_dict.get("upline_id"),
-                "System Role Tag": user_dict.get("role"),
                 "System Timestamp": str(user_dict.get("created_at"))
             })
             
