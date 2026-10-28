@@ -26,10 +26,7 @@ with st.form("signup_form", clear_on_submit=False):
     phone = st.text_input("Mobile Phone Number * (e.g. 60123456789)")
     full_name = st.text_input("Full Name (as per IC) *")
     
-    # NEW SECURE ACCOUNT PASSWORD ENTRY FIELD
     password = st.text_input("Create Account Password *", type="password", placeholder="Minimum 6 characters recommended")
-    
-    # Compulsory Selection Elements
     gender = st.selectbox("Gender *", options=["", "Male", "Female"])
     
     # 18+ Age Constraint Selection Strategy
@@ -58,7 +55,7 @@ with st.form("signup_form", clear_on_submit=False):
     submit_button = st.form_submit_button("Register Now", use_container_width=True)
     
     if submit_button:
-        # Step 1: Compulsory Field Validation Check (Including the New Password verification check)
+        # Step 1: Compulsory Field Validation Check
         if not email or not phone or not full_name or not password or not bank_account or not gender or not bank_name:
             st.error("❌ Registration Blocked: Please fill in all fields marked with an asterisk (*).")
             
@@ -70,41 +67,67 @@ with st.form("signup_form", clear_on_submit=False):
             if calculated_age < 18:
                 st.error("❌ Registration failed: You must be at least 18 years old to join.")
             else:
-                # Step 3: Verify Upline Hierarchy Chain Info
-                is_valid_upline, confirmed_upline_id = verify_upline(upline_id, upline_phone)
+                # =====================================================================
+                # NEW ANTI-DUPLICATE SCANNING PIPELINE
+                # =====================================================================
+                target_email = email.strip().lower()
+                target_phone = phone.strip().replace(" ", "").replace("+", "")
                 
-                if not is_valid_upline:
-                    st.error(f"❌ {confirmed_upline_id}")
+                email_exists = False
+                phone_exists = False
+                
+                try:
+                    # Scan database collection stream for active duplicates
+                    all_users = db.collection("users").stream()
+                    for user_doc in all_users:
+                        u_data = user_doc.to_dict()
+                        if u_data.get("email") == target_email:
+                            email_exists = True
+                        if u_data.get("phone") == target_phone:
+                            phone_exists = True
+                except Exception:
+                    pass # Fall through if database is initially empty
+                
+                if email_exists:
+                    st.error("❌ Registration Rejected: This Email Address is already registered to another account.")
+                elif phone_exists:
+                    st.error("❌ Registration Rejected: This Mobile Phone Number is already registered to another account.")
                 else:
-                    # Step 4: Write Record Mapping Parameters to Firestore Database
-                    try:
-                        new_member_id = generate_member_id()
-                        
-                        user_data = {
-                            "member_id": new_member_id,
-                            "email": email.strip().lower(),
-                            "phone": phone.strip(),
-                            "full_name": full_name.strip(),
-                            "password": password.strip(),  # <-- SAVES THE USER'S CUSTOM PASSWORD SECURELY
-                            "gender": gender,
-                            "birth_date": birth_date.strftime("%Y-%m-%d"),
-                            "bank_name": bank_name,
-                            "bank_account": bank_account.strip(),
-                            "upline_id": confirmed_upline_id if confirmed_upline_id else "",
-                            "upline_phone": upline_phone.strip() if upline_phone else "",
-                            "upline_name": upline_name.strip() if upline_name else "",
-                            "upline_locked": True if confirmed_upline_id else False,
-                            "first_purchase_time": "No buy history",
-                            "free_gift_claimed": False
-                        }
-                        
-                        db.collection("users").document(new_member_id).set(user_data)
-                        st.success(f"🎉 **Registration Successful!** Your unique Member ID is: **{new_member_id}**")
-                        st.balloons()
-                        
-                        st.info("🔄 Redirecting to the Login screen...")
-                        time.sleep(2.0)
-                        st.switch_page("home_view.py")
-                        
-                    except Exception as e:
-                        st.error(f"❌ Database Transaction Failure: {str(e)}")
+                    # Step 3: Verify Upline Hierarchy Chain Info
+                    is_valid_upline, confirmed_upline_id = verify_upline(upline_id, upline_phone)
+                    
+                    if not is_valid_upline:
+                        st.error(f"❌ {confirmed_upline_id}")
+                    else:
+                        # Step 4: Write Record Mapping Parameters to Firestore Database
+                        try:
+                            new_member_id = generate_member_id()
+                            
+                            user_data = {
+                                "member_id": new_member_id,
+                                "email": target_email,
+                                "phone": target_phone,
+                                "full_name": full_name.strip(),
+                                "password": password.strip(),
+                                "gender": gender,
+                                "birth_date": birth_date.strftime("%Y-%m-%d"),
+                                "bank_name": bank_name,
+                                "bank_account": bank_account.strip(),
+                                "upline_id": confirmed_upline_id if confirmed_upline_id else "",
+                                "upline_phone": upline_phone.strip() if upline_phone else "",
+                                "upline_name": upline_name.strip() if upline_name else "",
+                                "upline_locked": True if confirmed_upline_id else False,
+                                "first_purchase_time": "No buy history",
+                                "free_gift_claimed": False
+                            }
+                            
+                            db.collection("users").document(new_member_id).set(user_data)
+                            st.success(f"🎉 **Registration Successful!** Your unique Member ID is: **{new_member_id}**")
+                            st.balloons()
+                            
+                            st.info("🔄 Redirecting to the Login screen...")
+                            time.sleep(2.0)
+                            st.switch_page("home_view.py")
+                            
+                        except Exception as e:
+                            st.error(f"❌ Database Transaction Failure: {str(e)}")
