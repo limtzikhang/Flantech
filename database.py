@@ -3,24 +3,24 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import streamlit as st
 
-# Safe dual-connection initialization rule
 if not firebase_admin._apps:
-    # Check A: If running live online on Streamlit Cloud, pull secret parameters safely
     if "firebase" in st.secrets:
-        # Convert the secret text bundle dynamically back into structured dict mapping
+        # Pull secret parameters dynamically
         firebase_dict = dict(st.secrets["firebase"])
+        
+        # FIX FOR NEWLINE CONFLICTS:
+        # Ensures internal string data transforms escape codes cleanly
+        if "private_key" in firebase_dict:
+            firebase_dict["private_key"] = firebase_dict["private_key"].replace("\\n", "\n")
+            
         cred = credentials.Certificate(firebase_dict)
         firebase_admin.initialize_app(cred)
-        
-    # Check B: Fallback connection rule for local offline computer development
     else:
-        try:
-            cred = credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-078f0e696c.json")
-            firebase_admin.initialize_app(cred)
-        except Exception:
-            st.error("🔒 Security Error: Private credential file missing from root directory folder context.")
+        cred = credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-078f0e696c.json")
+        firebase_admin.initialize_app(cred)
 
 db = firestore.client()
+
 
 
 def verify_upline(upline_id: str, upline_phone: str) -> tuple[bool, str]:
