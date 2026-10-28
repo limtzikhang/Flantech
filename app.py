@@ -231,7 +231,6 @@ def render_store_front():
     
     with col_p1:
         st.markdown("### Formulation A: Mega H")
-        # Direct local verification path mappings routing to product directories
         st.image("product/mega_h.jpg", width=280, fallback="💊 [Mega H Asset Image Missing - Check repo product/ folder]")
         st.caption("Active Silica Hydride structural antioxidant formulation driving micro-cluster hydration levels inside cell membranes.")
         
@@ -240,8 +239,32 @@ def render_store_front():
         st.image("product/crystal_energy.jpg", width=280, fallback="💧 [Crystal Energy Asset Image Missing - Check repo product/ folder]")
         st.caption("Liquid structured fluid catalyst component drops modifying surface tension dynamics of local drinking water matrix profiles.")
 
+    # =============================================================================
+    # NEW: MARKETING VIDEO PORTFOLIO SHOWCASE
+    # =============================================================================
+    st.write("---")
+    st.markdown("### 📺 Flantech Hybrid Video Presentation Library")
+    st.caption("Review our technical breakdown and marketing system walkthrough videos below:")
+    
+    # Render a 3-column media dashboard map for clean scannability
+    v_col1, v_col2, v_col3 = st.columns(3)
+    
+    with v_col1:
+        st.markdown("##### 📹 Presentation Clip 1")
+        # Ensure your filenames in the video/ directory match exactly (case-sensitive)
+        st.video("video/video1.mp4", format="video/mp4", start_time=0)
+        
+    with v_col2:
+        st.markdown("##### 📹 Formulation Science")
+        st.video("video/video2.mp4", format="video/mp4", start_time=0)
+        
+    with v_col3:
+        st.markdown("##### 📹 Marketing System Breakdown")
+        st.video("video/video3.mp4", format="video/mp4", start_time=0)
+
     st.write("---")
     st.markdown("### 📊 Live Processing Allocation Interface")
+
     
     # Setup step input parameters constrained by local distribution laws
     target_item = st.selectbox("Selected Catalog Line Item", ["Patrick Flanagan: Mega H", "Patrick Flanagan: Crystal Energy"])
