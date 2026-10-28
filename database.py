@@ -4,35 +4,43 @@ from firebase_admin import credentials, firestore
 import streamlit as st
 import os
 
-# =====================================================================
-# FORCE BYPASS ALL GOOGLE AUTHENTICATION PLUGINS & METADATA SERVER
-# =====================================================================
-# This completely suppresses the 503/404 plugin timeout loop on Streamlit Cloud
+# 1. Enforce strict environment isolation bypass controls
 os.environ["GCM_METADATA_TIMEOUT"] = "0"
 os.environ["AUTO_RENEW_CREDENTIALS"] = "False"
 os.environ["GOOGLE_AUTH_SUPPRESS_CREDENTIALS_WARNINGS"] = "true"
 
+# Global database connection reference tool variable
+db = None
+
 if not firebase_admin._apps:
     if "firebase" in st.secrets:
-        # Load the configuration secrets parameters map dictionary safely
         firebase_dict = dict(st.secrets["firebase"])
-        
-        # Explicitly clean and re-align internal string formatting tokens
         if "private_key" in firebase_dict:
             firebase_dict["private_key"] = firebase_dict["private_key"].replace("\\n", "\n")
             
         cred = credentials.Certificate(firebase_dict)
         firebase_admin.initialize_app(cred)
+        
+        # FIXED CRITICAL LOOKUP PATH:
+        # Instead of calling firestore.client() generically, pass the targeted 
+        # credentials object straight into the initialization constructor.
+        # This completely strips away the broken plugin metadata discovery server loop.
+        db = firestore.client(credential=cred.get_credential())
     else:
-        # Local computer fallback rule context
+        # Local computer execution pipeline fallback connection rule
         cred = credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-43ed14c73a.json")
         firebase_admin.initialize_app(cred)
+        db = firestore.client(credential=cred.get_credential())
+else:
+    # Handle rerun app compilation steps using the active connection app instance
+    app = firebase_admin.get_app()
+    cred = credentials.Certificate(dict(st.secrets["firebase"])) if "firebase" in st.secrets else credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-43ed14c73a.json")
+    db = firestore.client(credential=cred.get_credential())
 
-# Force initialize client targeting direct document operations 
-db = firestore.client()
-
+# =====================================================================
+# HIERARCHY HASH UTILITIES
+# =====================================================================
 def verify_upline(upline_id: str, upline_phone: str) -> tuple[bool, str]:
-    """Scans Firestore to confirm if the sponsor exists before linking them."""
     clean_id = upline_id.strip() if upline_id else ""
     clean_phone = upline_phone.strip() if upline_phone else ""
     
@@ -52,7 +60,6 @@ def verify_upline(upline_id: str, upline_phone: str) -> tuple[bool, str]:
     return False, "Sponsor not found. Please double-check the Upline ID or Phone Number."
 
 def handle_successful_payment(user_id: str, quantity: int, total_price: float):
-    """Logs the invoice transaction receipt securely in Firestore."""
     from datetime import datetime
     import time
     
@@ -70,7 +77,6 @@ def handle_successful_payment(user_id: str, quantity: int, total_price: float):
         upline_linked = profile.get("upline_id", "")
         has_claimed_before = profile.get("free_gift_claimed", False)
         
-        # 1-Time Gift Eligibility: Must be exactly 6 bottles under an upline sponsor
         if quantity == 6 and upline_linked != "" and not has_claimed_before:
             free_bottles_reward = 1
             user_ref.update({"free_gift_claimed": True})
