@@ -194,12 +194,11 @@ def render_auth_portal():
                 return
                 
             try:
-                # SAFE VARIANT MANIPULATION BEYOND SCOPE SECURITY FILTERS
                 api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
                 
-                # FIXED ROUTING TARGET MATRIX
+                # FIXED TARGET MATRIX PATHS: Direct endpoint mapping targets isolated correctly
                 api_url = "https://googleapis.com"
-                update_url = "https://googleapis.com:update"
+                update_url = "https://googleapis.com"
                 
                 params = {"key": api_key}
                 headers = {"Content-Type": "application/json"}
@@ -220,6 +219,7 @@ def render_auth_portal():
                 res_data = response.json()
                 new_uid = res_data["localId"]
                 
+                # FIXED PROFILE INTERNALS: Points to the legitimate profile updating address mapping bounds
                 requests.post(update_url, params=params, json={
                     "idToken": res_data["idToken"],
                     "displayName": new_name,
