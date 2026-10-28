@@ -1,6 +1,11 @@
 # app.py
 import streamlit as st
 
+# app.py - Add these inside your global session tracking section
+if "cart" not in st.session_state:
+    st.session_state.cart = {}  # Tracks product quantities selected by the user
+
+
 # 1. Initialize persistent session memories
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
