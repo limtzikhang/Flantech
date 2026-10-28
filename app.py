@@ -201,11 +201,19 @@ def render_auth_portal():
                 return
                 
             try:
-                # FIXED: Absolute URL endpoints hardcoded to prevent name resolution crashes
-                api_url = "https://googleapis.com"
-                update_url = "https://googleapis.com"
+                # Target API key 
+                api_key = "AIzaSyD_i2pNXlCLHwtGeTnZee7UkOhlZnMzkpA"
+                
+                # =============================================================
+                # CRITICAL SYSTEM FIX: Explicit Project-Isolated Enrolment Route
+                # Redirects the request directly into your project's instance bucket
+                # =============================================================
+                api_url = f"https://googleapis.com{api_key}"
+                update_url = f"https://googleapis.com{api_key}"
                 
                 headers = {"Content-Type": "application/json"}
+                
+                # Payload structures built exactly according to Firebase project-endpoint requirements
                 payload = {
                     "email": new_email,
                     "password": new_password,
@@ -222,6 +230,7 @@ def render_auth_portal():
                 res_data = response.json()
                 new_uid = res_data["localId"]
                 
+                # Send update metadata package directly using the custom route
                 requests.post(update_url, json={
                     "idToken": res_data["idToken"],
                     "displayName": new_name,
