@@ -3,8 +3,9 @@ import firebase_admin
 from firebase_admin import credentials, firestore
 import streamlit as st
 import os
+from google.cloud import firestore as google_firestore
 
-# 1. Enforce strict environment isolation bypass controls
+# Enforce strict server environment isolation bypass controls
 os.environ["GCM_METADATA_TIMEOUT"] = "0"
 os.environ["AUTO_RENEW_CREDENTIALS"] = "False"
 os.environ["GOOGLE_AUTH_SUPPRESS_CREDENTIALS_WARNINGS"] = "true"
@@ -21,21 +22,30 @@ if not firebase_admin._apps:
         cred = credentials.Certificate(firebase_dict)
         firebase_admin.initialize_app(cred)
         
-        # FIXED CRITICAL LOOKUP PATH:
-        # Instead of calling firestore.client() generically, pass the targeted 
-        # credentials object straight into the initialization constructor.
-        # This completely strips away the broken plugin metadata discovery server loop.
-        db = firestore.client(credential=cred.get_credential())
+        # CORRECT CLIENT INITIALIZATION:
+        # We use the underlying google.cloud firestore client constructor.
+        # This binds your secrets passport directly to the database instance,
+        # completely preventing 503/404 metadata server errors.
+        g_cred = cred.get_credential()
+        db = google_firestore.Client(project="flantech-asia", credentials=g_cred)
     else:
         # Local computer execution pipeline fallback connection rule
         cred = credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-43ed14c73a.json")
         firebase_admin.initialize_app(cred)
-        db = firestore.client(credential=cred.get_credential())
+        g_cred = cred.get_credential()
+        db = google_firestore.Client(project="flantech-asia", credentials=g_cred)
 else:
     # Handle rerun app compilation steps using the active connection app instance
-    app = firebase_admin.get_app()
-    cred = credentials.Certificate(dict(st.secrets["firebase"])) if "firebase" in st.secrets else credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-43ed14c73a.json")
-    db = firestore.client(credential=cred.get_credential())
+    if "firebase" in st.secrets:
+        firebase_dict = dict(st.secrets["firebase"])
+        if "private_key" in firebase_dict:
+            firebase_dict["private_key"] = firebase_dict["private_key"].replace("\\n", "\n")
+        cred = credentials.Certificate(firebase_dict)
+    else:
+        cred = credentials.Certificate("flantech-asia-firebase-adminsdk-fbsvc-43ed14c73a.json")
+        
+    g_cred = cred.get_credential()
+    db = google_firestore.Client(project="flantech-asia", credentials=g_cred)
 
 # =====================================================================
 # HIERARCHY HASH UTILITIES
