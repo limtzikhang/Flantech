@@ -51,6 +51,20 @@ else:
     else:
         pricing = calculate_b2b_price(total_bottles)
 
+    # =====================================================================
+    # NEW DYNAMIC DISCOUNT TIER ASSISTANT NOTIFICATIONS
+    # =====================================================================
+    if total_bottles == 1:
+        st.info("💡 **Unlock Savings:** Add just **1 more bottle** to your cart to slash the price from RM 248 down to **RM 198** per bottle!")
+    elif 2 <= total_bottles <= 48:
+        bottles_needed = 50 - total_bottles
+        st.info(f"🚀 **Wholesale B2B Bonus:** Add another **{bottles_needed} bottles** to hit the 50-bottle milestone and unlock the lowest price of **RM 148** per bottle!")
+    elif total_bottles == 49:
+        st.info("🔥 **Almost There!** Add just **1 more bottle** to your cart to claim the supreme B2B bulk rate of **RM 148** per bottle!")
+    elif total_bottles >= 50:
+        st.success("🏆 **Maximum Discount Activated:** You have successfully unlocked our premium B2B wholesale rate of RM 148 per bottle!")
+
+
     # 4. ONE-TIME 6-BOTTLE SPONSOR REWARD VALIDATION TREE
     is_eligible_for_free_gift = False
     if total_bottles == 6:

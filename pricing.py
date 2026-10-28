@@ -1,30 +1,32 @@
 # pricing.py
 
-BASE_PRICE = 248.00  # Standard Retail B2C price
-B2B_PRICE = 148.00   # Discounted B2B package price
-
 def calculate_b2c_price(quantity: int) -> dict:
-    """Calculates B2C cost structure."""
-    total_price = quantity * BASE_PRICE
-    return {
-        "quantity": quantity,
-        "price_per_unit": BASE_PRICE,
-        "total_price": round(total_price, 2)
-    }
-
-def calculate_b2b_price(quantity: int) -> dict:
     """
-    Calculates B2B cost structure. Enforces a bulk rate of RM148 
-    if they hit the 50-bottle network standard.
+    Calculates B2C step pricing tiers:
+    - 1 bottle = RM 248
+    - 2 to 49 bottles = RM 198 per bottle
+    - 50 bottles = Enforces the absolute bulk rate of RM 148
     """
-    if quantity >= 50:
-        price_per_unit = B2B_PRICE
+    if quantity == 1:
+        price_per_unit = 248.00
+    elif 2 <= quantity <= 49:
+        price_per_unit = 198.00
+    elif quantity >= 50:
+        price_per_unit = 148.00
     else:
-        price_per_unit = BASE_PRICE
+        price_per_unit = 0.00
         
     total_price = quantity * price_per_unit
+    
     return {
         "quantity": quantity,
         "price_per_unit": price_per_unit,
         "total_price": round(total_price, 2)
     }
+
+def calculate_b2b_price(quantity: int) -> dict:
+    """
+    B2B account checkout fallback logic mirror.
+    Ensures all pricing structures follow the standard pricing tiers.
+    """
+    return calculate_b2c_price(quantity)
