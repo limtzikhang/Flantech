@@ -10,13 +10,11 @@ import requests
 # =============================================================================
 if not firebase_admin._apps:
     try:
-        # Secure parsing for cloud deployment environments using secrets engine
         if "firebase_service_account" in st.secrets:
             cred_dict = dict(st.secrets["firebase_service_account"])
             cred = credentials.Certificate(cred_dict)
             firebase_admin.initialize_app(cred)
         else:
-            # Fallback path checking for local repository structures
             base_dir = os.path.dirname(os.path.abspath(__file__))
             key_path = os.path.join(base_dir, "serviceAccountKey.json")
             
@@ -41,7 +39,6 @@ st.set_page_config(
     layout="wide"
 )
 
-# Persistent session keys checking across the Streamlit lifecycle
 if "logged_in" not in st.session_state:
     st.session_state.logged_in = False
 if "user_email" not in st.session_state:
@@ -98,7 +95,7 @@ def request_toyyibpay_fpx(name, email, phone, amount, desc):
         'billDescription': desc,
         'billPriceSetting': 1,
         'billPayeeInfo': 1,
-        'billAmount': int(amount * 100),  # Converts RM to Sen (e.g. RM248 -> 24800)
+        'billAmount': int(amount * 100),
         'billReturnUrl': 'https://github.com',
         'billCallbackUrl': 'https://your-api-receiver.com',
         'billExternalReferenceNo': f"FT-{os.urandom(4).hex().upper()}",
@@ -134,13 +131,10 @@ def render_auth_portal():
             try:
                 user_auth_record = auth.get_user_by_email(login_email)
                 user_ref = db.collection("users").document(user_auth_record.uid).get()
-                
-                # MASTER ADMIN SECURITY INTERCEPTION HOOK
                 is_admin_uid = (user_auth_record.uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1")
                 
                 if user_ref.exists:
                     user_profile = user_ref.to_dict()
-                    
                     if is_admin_uid and user_profile.get("role") != "admin":
                         db.collection("users").document(user_auth_record.uid).update({"role": "admin"})
                         user_profile["role"] = "admin"
@@ -178,7 +172,6 @@ def render_auth_portal():
         st.caption("All fields marked with (*) are required for internal compliance and payment settlements.")
         
         col_left, col_right = st.columns(2)
-        
         with col_left:
             new_name = st.text_input("Legal Name (matching Identity & Bank Card) *")
             new_email = st.text_input("Active Primary Email Address *")
@@ -201,26 +194,23 @@ def render_auth_portal():
                 return
                 
             try:
-                # Target API key 
-                api_key = "AIzaSyD_i2pNXlCLHwtGeTnZee7UkOhlZnMzkpA"
+                # SAFE VARIANT MANIPULATION BEYOND SCOPE SECURITY FILTERS
+                api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
                 
-                # =============================================================
-                # CRITICAL SYSTEM FIX: Explicit Project-Isolated Enrolment Route
-                # Redirects the request directly into your project's instance bucket
-                # =============================================================
-                api_url = f"https://googleapis.com{api_key}"
-                update_url = f"https://googleapis.com{api_key}"
+                # FIXED ROUTING TARGET MATRIX
+                api_url = "https://googleapis.com"
+                update_url = "https://googleapis.com:update"
                 
+                params = {"key": api_key}
                 headers = {"Content-Type": "application/json"}
                 
-                # Payload structures built exactly according to Firebase project-endpoint requirements
                 payload = {
                     "email": new_email,
                     "password": new_password,
                     "returnSecureToken": True
                 }
                 
-                response = requests.post(api_url, json=payload, headers=headers, timeout=10)
+                response = requests.post(api_url, params=params, json=payload, headers=headers, timeout=10)
                 
                 if response.status_code != 200:
                     st.error(f"🚨 Google Server Rejection (HTTP {response.status_code})")
@@ -230,8 +220,7 @@ def render_auth_portal():
                 res_data = response.json()
                 new_uid = res_data["localId"]
                 
-                # Send update metadata package directly using the custom route
-                requests.post(update_url, json={
+                requests.post(update_url, params=params, json={
                     "idToken": res_data["idToken"],
                     "displayName": new_name,
                     "returnSecureToken": True
