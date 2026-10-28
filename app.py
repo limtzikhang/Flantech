@@ -177,9 +177,11 @@ def render_auth_portal():
                 return
                 
             try:
-                # FIXED DYNAMIC URL STRINGS: Correctly isolates the variables via f-strings
-                api_key = st.secrets["FIREBASE_WEB_API_KEY"]
-                api_url = f"https://googleapis.com{api_key}"
+                # FIX: Explicit text isolation ensures clean request generation boundaries
+                api_key = str(st.secrets["FIREBASE_WEB_API_KEY"]).strip()
+                
+                # We structurally build the query paths manually with crisp separators
+                api_url = f"https://identitytoolkit.googleapis.com/v1/accounts:signUp?key={api_key}"
                 
                 payload = {
                     "email": new_email,
@@ -196,7 +198,7 @@ def render_auth_portal():
                 
                 new_uid = res_data["localId"]
                 
-                # Update display name profile properties cleanly via structural API values
+                # Explicit update profile name parameters mapping
                 update_url = f"https://googleapis.com{api_key}"
                 requests.post(update_url, json={
                     "idToken": res_data["idToken"],
@@ -223,6 +225,7 @@ def render_auth_portal():
                 
             except Exception as system_err:
                 st.error(f"Enrolment halted by system validation server: {system_err}")
+
 # =============================================================================
 # 6. RENDER STORE SYSTEM PLATFORM (PRODUCT PANELS & SHOPPING CART)
 # =============================================================================
