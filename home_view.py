@@ -19,7 +19,7 @@ def render_login_view():
     input_password = st.text_input("Password", type="password")
     
     if st.button("Login to Account", use_container_width=True):
-        # Clean inputs: eliminate structural spaces, symbols, and force lowercasing
+        # 1. Sanitize text string fields completely
         cleaned_username = username.replace("+", "").replace(" ", "").strip().lower()
         cleaned_password = input_password.strip().lower()
         
@@ -28,7 +28,7 @@ def render_login_view():
             return
 
         # ====================================================================
-        # 1. FIXED ADMIN GATEWAY (Checks both hardcoded options case-insensitively)
+        # IMMUTABLE HARDCODED ADMIN CHECKPOINT (Bypasses Firebase query)
         # ====================================================================
         is_admin_phone = (cleaned_username == "60164191861" and cleaned_password == "admin")
         is_admin_email = (cleaned_username == "limtzikhang@gmail.com" and cleaned_password == "admin")
@@ -37,31 +37,27 @@ def render_login_view():
             st.session_state.logged_in = True
             st.session_state.is_admin = True
             st.session_state.user_id = "ADMIN-USER"
-            st.success("Welcome back, Master Admin!")
+            st.success("Welcome back, Master Admin! Loading dashboard...")
             time.sleep(0.5)
             st.rerun()
-            return
+            return  # Prevents falling through to Firebase lookup code blocks
 
         # ====================================================================
-        # 2. HYBRID CUSTOMER LOGIN (Allows Email or Phone lookup streams)
+        # REGULAR CUSTOMER BACKEND DATABASE QUERY
         # ====================================================================
         else:
             try:
                 user_found = None
-                
-                # Check A: Try routing as an Email address token match
                 if "@" in cleaned_username:
                     users_query = db.collection("users").where("email", "==", cleaned_username).limit(1).stream()
                     for doc in users_query:
                         user_found = doc.to_dict()
-                
-                # Check B: Fallback string matching via Phone Number
-                if not user_found:
+                else:
                     users_query = db.collection("users").where("phone", "==", cleaned_username).limit(1).stream()
                     for doc in users_query:
                         user_found = doc.to_dict()
 
-                if user_found and cleaned_password == "123456": # Standard consumer mock pass
+                if user_found and cleaned_password == "123456":
                     st.session_state.logged_in = True
                     st.session_state.is_admin = False
                     st.session_state.user_id = user_found["member_id"]
@@ -69,9 +65,10 @@ def render_login_view():
                     time.sleep(0.5)
                     st.rerun()
                 else:
-                    st.error("Invalid credentials provided. Check email/phone number or password.")
+                    st.error("Invalid credentials provided.")
             except Exception as e:
                 st.error(f"System Network Error: {str(e)}")
+
 
 def render_profile_view():
     st.title("👤 My Profile Dashboard")
