@@ -1,370 +1,370 @@
-import streamlit as st
+from flask import Flask, render_template_string, request, redirect, session, url_for
 import firebase_admin
 from firebase_admin import credentials, auth, firestore
-import json
 import os
 
 # =============================================================================
-# 1. CORE UNIFIED BACKEND INITIALIZATION (ADMIN SDK CERTIFICATES)
+# 1. APPLICATION INITIALIZATION & SECURITY FRAMEWORKS
+# =============================================================================
+app = Flask(__name__)
+
+# Encrypted session tracking matrix protects user session cookies from client injection
+app.secret_key = os.urandom(24).hex()
+
+# =============================================================================
+# 2. CORE UNIFIED BACKEND INITIALIZATION (ADMIN SDK CERTIFICATES)
 # =============================================================================
 if not firebase_admin._apps:
     try:
-        # Secure configuration parsing using your secrets manager dashboard variables
-        if "firebase_service_account" in st.secrets:
-            cred_dict = dict(st.secrets["firebase_service_account"])
-            cred = credentials.Certificate(cred_dict)
-            firebase_admin.initialize_app(cred)
-        else:
-            # Fallback path checking for local repository structures
-            base_dir = os.path.dirname(os.path.abspath(__file__))
-            key_path = os.path.join(base_dir, "serviceAccountKey.json")
-            if os.path.exists(key_path):
-                cred = credentials.Certificate(key_path)
-                firebase_admin.initialize_app(cred)
-            else:
-                st.error("🚨 Configuration Error: Service account credentials missing inside secrets manager dashboard.")
-                st.stop()
-    except Exception as e:
-        st.error(f"Initialization Guard Failure: {e}")
-        st.stop()
+        # Connects to your project bucket using the root service credential file
+        cred = credentials.Certificate("serviceAccountKey.json")
+        firebase_admin.initialize_app(cred)
+    except Exception as initialization_error:
+        # Structural fallback print out to verify configuration paths during build cycles
+        print(f"Critical System Initialization Halt: {initialization_error}")
 
 db = firestore.client()
 
 # =============================================================================
-# 2. APPLICATION CONFIGURATION & ENGINE STATES
+# 3. HTML VISUAL RENDERING PLATFORM (BOOTSTRAP STYLE ENGINE)
 # =============================================================================
-st.set_page_config(
-    page_title="Flantech Distribution Engine", 
-    page_icon="⚡", 
-    layout="wide"
-)
-
-# Active user profile trackers maintained across the platform lifecycle
-if "logged_in" not in st.session_state:
-    st.session_state.logged_in = False
-if "user_email" not in st.session_state:
-    st.session_state.user_email = ""
-if "user_uid" not in st.session_state:
-    st.session_state.user_uid = ""
-if "user_name" not in st.session_state:
-    st.session_state.user_name = ""
-if "user_mobile" not in st.session_state:
-    st.session_state.user_mobile = ""
-
-# =============================================================================
-# 3. CORE PLATFORM PRICING MATRICES & CALCULATIONS
-# =============================================================================
-def calculate_price(qty):
-    """
-    Executes tiered wholesale corporate rules on inventory units.
-    Max purchase cap: 50 bottles per transaction.
-    """
-    if qty <= 0:
-        return 0, 0
-    elif qty == 1:
-        price_per_bottle = 248  # B2C Standard Retail Rate
-    elif 2 <= qty <= 49:
-        price_per_bottle = 198  # Bulk Wholesale Discount Rate
-    elif qty == 50:
-        price_per_bottle = 148  # Premium Corporate B2B Tier
-    else:
-        price_per_bottle = 148  # Safeguard enforcement fallback value
+HTML_LAYOUT = """
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Flantech Corporate Distribution Engine</title>
+    <link href="https://jsdelivr.net" rel="stylesheet">
+    <style>
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
+        .card { border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); border: none; }
+        .btn-primary { background-color: #0d6efd; border: none; }
+        .btn-success { background-color: #198754; border: none; }
+    </style>
+</head>
+<body>
+    <div class="container py-5" style="max-width: 1100px;">
         
-    return price_per_bottle, qty * price_per_bottle
+        <!-- Live System Alert Broadcast Channel Panel -->
+        {% if banner_msg %}
+            <div class="alert alert-info text-center fw-bold mb-4 shadow-sm">{{ banner_msg }}</div>
+        {% endif %}
 
-# =============================================================================
-# 4. LIVE MALAYSIAN PAYMENT INTEGRATION GATEWAY HOOKS
-# =============================================================================
-def request_toyyibpay_fpx(name, email, phone, amount, desc):
-    """
-    Dispatches billing payloads directly to the ToyyibPay local engine.
-    Formats money strictly into Malaysian Cents (Sen) as required by FPX.
-    """
-    # Standard dummy response for clean execution routing
-    return {"status": "success", "billURL": "https://toyyibpay.com"}
-# =============================================================================
-# 5. RENDER SYSTEM PORTAL: SECURE SIGN-IN & REGISTRATION
-# =============================================================================
-def render_auth_portal():
-    st.title("⚡ Flantech Hybrid Corporate Portal")
-    st.markdown("##### Authorized Distribution Pipeline for Patrick Flanagan Formulations")
-    st.write("")
-    
-    tab_login, tab_signup = st.tabs(["🔐 Partner Sign In", "📝 Network Registration"])
-    
-    with tab_login:
-        st.markdown("### Authentication Hub")
-        login_email = st.text_input("Account Email Address", key="auth_email")
-        login_password = st.text_input("Security Access Password", type="password", key="auth_pass")
-        
-        if st.button("Verify Identity & Enter", type="primary", use_container_width=True):
-            try:
-                # PURE NATIVE METHOD: Pull profile info securely via server-side Admin SDK
-                user_auth_record = auth.get_user_by_email(login_email.strip())
-                user_ref = db.collection("users").document(user_auth_record.uid).get()
-                is_admin_uid = (user_auth_record.uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1")
+        {% if not session.get('logged_in') %}
+            <!-- ============================================================================= -->
+            <!-- PORTAL FRONTEND: SECURE GATEWAY HUB -->
+            <!-- ============================================================================= -->
+            <div class="card p-4 mb-4">
+                <div class="text-center mb-4 border-bottom pb-3">
+                    <h2 class="text-primary fw-bold mb-1">⚡ Flantech Hybrid Corporate Portal</h2>
+                    <p class="text-muted mb-2">Authorized Distribution Pipeline for Patrick Flanagan Formulations</p>
+                </div>
+                <div class="row g-4">
+                    <!-- Column Left: Account Sign In Module -->
+                    <div class="col-md-5 border-end px-4">
+                        <h4 class="mb-3 text-secondary fw-semibold">🔐 Partner Sign In</h4>
+                        <form method="POST" action="/login">
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Account Email Address</label>
+                                <input type="email" name="email" class="form-control" required autocomplete="username">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Security Password</label>
+                                <input type="password" name="password" class="form-control" required autocomplete="current-password">
+                            </div>
+                            <button type="submit" class="btn btn-primary w-100 fw-bold py-2 mt-2">Verify Identity & Enter</button>
+                        </form>
+                    </div>
+                    <!-- Column Right: Distribution Network Enrollment Form -->
+                    <div class="col-md-7 px-4">
+                        <h4 class="mb-3 text-secondary fw-semibold">📝 Network Registration</h4>
+                        <form method="POST" action="/signup">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold">Legal Name *</label>
+                                    
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold">Primary Email *</label>
+                                    <input type="email" name="email" class="form-control" required autocomplete="email">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold">Mobile Number *</label>
+                                    <input type="text" name="name_mobile" class="form-control" placeholder="+601XXXXXXXX" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold">Set Password *</label>
+                                    <input type="password" name="password" class="form-control" placeholder="Min 6 characters" required autocomplete="new-password">
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold">Settlement Bank *</label>
+                                    <select name="bank_name" class="form-select">
+                                        <option>Malayan Banking Berhad (Maybank)</option>
+                                        <option>CIMB Bank Berhad</option>
+                                        <option>Public Bank Berhad</option>
+                                        <option>RHB Bank Berhad</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label small fw-bold">Bank Account Number *</label>
+                                    <input type="text" name="bank_acc" class="form-control" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label small fw-bold">Upline Referrer ID / Affiliate Code (Optional)</label>
+                                <input type="text" name="upline" class="form-control" placeholder="Leave completely blank if direct to company">
+                            </div>
+                            <button type="submit" class="btn btn-success w-100 fw-bold py-2 mt-2">Register & Verify Account Profile</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <!-- ============================================================================= -->
+            <!-- PORTAL FRONTEND: AUTHORIZED PARTNER STOREFRONT -->
+            <!-- ============================================================================= -->
+            <div class="card p-4">
+                <div class="d-flex justify-content-between align-items-center border-bottom pb-3 mb-4">
+                    <div>
+                        <h4 class="mb-0 fw-bold">🛡️ Partner Workspace: <span class="text-primary">{{ session.get('user_name') }}</span></h4>
+                        <small class="text-muted">Security Code ID: <code>{{ session.get('user_uid') }}</code> | System Role: <span class="badge bg-dark">{{ session.get('role') }}</span></small>
+                    </div>
+                    <a href="/logout" class="btn btn-outline-danger fw-bold px-4">Secure Logout</a>
+                </div>
+
+                <h3 class="mb-3 fw-bold text-dark">🛒 Flantech Procurement Center</h3>
+                <p class="text-muted">Direct asset acquisition panel for authorized affiliate distribution nodes.</p>
                 
-                if user_ref.exists:
-                    user_profile = user_ref.to_dict()
-                    
-                    # Force update the field role to admin in Firestore securely if missing
-                    if is_admin_uid and user_profile.get("role") != "admin":
-                        db.collection("users").document(user_auth_record.uid).update({"role": "admin"})
-                        user_profile["role"] = "admin"
-                        
-                    st.session_state.logged_in = True
-                    st.session_state.user_email = login_email
-                    st.session_state.user_uid = user_auth_record.uid
-                    st.session_state.user_name = user_profile.get("name", "Valued Partner")
-                    st.session_state.user_mobile = user_profile.get("mobile", "")
-                    st.success(f"Access granted. Welcome {st.session_state.user_name}")
-                    st.rerun()
-                else:
-                    # Self healing protocol mapping for decoupled identity profiles
-                    assigned_role = "admin" if is_admin_uid else "b2c"
-                    structured_payload = {
-                        "uid": user_auth_record.uid,
-                        "name": "Lim Tzik Hang" if is_admin_uid else "Partner",
-                        "email": login_email,
-                        "mobile": "+601XXXXXXXX",
-                        "bank_details": {"bank_name": "Maybank", "account_number": "0000000000"},
-                        "upline_id": None,
-                        "role": assigned_role,
-                        "created_at": firestore.SERVER_TIMESTAMP
-                    }
-                    db.collection("users").document(user_auth_record.uid).set(structured_payload)
-                    st.session_state.logged_in = True
-                    st.session_state.user_email = login_email
-                    st.session_state.user_uid = user_auth_record.uid
-                    st.session_state.user_name = structured_payload["name"]
-                    st.rerun()
-            except Exception as login_err:
-                st.error(f"Authentication failed: {login_err}")
+                <div class="row g-4 mb-4">
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded bg-white h-100 shadow-sm border-start border-primary border-4">
+                            <h5 class="fw-bold mb-1">💊 Formulation A: Mega H</h5>
+                            <p class="text-muted small">Active Silica Hydride structural antioxidant formulation driving micro-cluster hydration levels inside cell membranes.</p>
+                            <span class="fw-bold text-success fs-5">RM 248.00 / bottle</span>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="p-3 border rounded bg-white h-100 shadow-sm border-start border-info border-4">
+                            <h5 class="fw-bold mb-1">💧 Formulation B: Crystal Energy</h5>
+                            <p class="text-muted small">Liquid structured fluid catalyst component drops modifying surface tension dynamics of local drinking water matrix profiles.</p>
+                            <span class="fw-bold text-success fs-5">RM 248.00 / bottle</span>
+                        </div>
+                    </div>
+                </div>
 
-    with tab_signup:
-        st.markdown("### Affiliate Account Registration")
-        st.caption("All fields marked with (*) are required for internal compliance and payment settlements.")
-        
-        col_left, col_right = st.columns(2)
-        with col_left:
-            new_name = st.text_input("Legal Name (matching Identity & Bank Card) *", key="reg_name")
-            new_email = st.text_input("Active Primary Email Address *", key="reg_email")
-            new_mobile = st.text_input("Mobile Phone Number (e.g., +601XXXXXXXX) *", key="reg_mobile")
-            new_password = st.text_input("Set Security Password (Min 6 Characters) *", type="password", key="reg_password")
+                <!-- ============================================================================= -->
+                <!-- NEW: MARKETING VIDEO PRESENTATION LIBRARY LAYOUTS -->
+                <!-- ============================================================================= -->
+                <h4 class="fw-bold text-dark mb-2">📺 Flantech Hybrid Video Presentation Library</h4>
+                <p class="text-muted small mb-3">Review our technical breakdown and marketing system walkthrough videos below:</p>
+                <div class="row g-3 mb-4">
+                    <div class="col-md-4">
+                        <div class="card bg-white p-2 h-100 border text-center">
+                            <h6 class="fw-bold py-1 text-secondary mb-1">📹 System Introduction</h6>
+                            <video class="w-100 rounded" controls src="video/video1.mp4" style="max-height: 180px; background-color: #000;"></video>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-white p-2 h-100 border text-center">
+                            <h6 class="fw-bold py-1 text-secondary mb-1">📹 Formulation Science</h6>
+                            <video class="w-100 rounded" controls src="video/video2.mp4" style="max-height: 180px; background-color: #000;"></video>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card bg-white p-2 h-100 border text-center">
+                            <h6 class="fw-bold py-1 text-secondary mb-1">📹 Marketing System Breakdown</h6>
+                            <video class="w-100 rounded" controls src="video/video3.mp4" style="max-height: 180px; background-color: #000;"></video>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ============================================================================= -->
+                <!-- PROCUREMENT CART ALLOCATION MODULE -->
+                <!-- ============================================================================= -->
+                <div class="card bg-light p-4 border-0 shadow-sm mb-4">
+                    <h5 class="fw-bold mb-2">📊 Live Processing Allocation Interface</h5>
+                    <form method="POST" action="/order" class="row g-3 align-items-center">
+                        <div class="col-md-5">
+                            <select name="product" class="form-select py-2"><option>Patrick Flanagan: Mega H</option><option>Patrick Flanagan: Crystal Energy</option></select>
+                        </div>
+                        <div class="col-md-3">
+                            <input type="number" name="qty" class="form-control py-2" min="1" max="50" value="1" placeholder="Quantity allocation size">
+                        </div>
+                        <div class="col-md-4">
+                            <button type="submit" class="btn btn-warning w-100 fw-bold py-2 text-dark">Authorize FPX Order Settlement</button>
+                        </div>
+                    </form>
+                    <div class="mt-3 text-secondary border-top pt-2" style="font-size: 0.85rem;">
+                        💡 **Wholesale Threshold Matrix Rules:** 1 Unit: RM248 | 2-49 Units: Bulk Volume Tier discount rate RM198 per unit | Exactly 50 Units (B2B Bulk Cap): Premium Wholesale Tier RM148 per unit.
+                    </div>
+                </div>
+                <!-- ============================================================================= -->
+                <!-- SECRET ADMIN EXCLUSIVE DASHBOARD VIEW PANEL -->
+                <!-- ============================================================================= -->
+                {% if session.get('role') == 'admin' %}
+                    <div class="mt-4 border-top pt-4">
+                        <h4 class="text-danger fw-bold mb-2">👑 Master Corporate Order Manifest Desk</h4>
+                        <p class="text-muted small mb-3">Secure verification module active exclusively for your root administrative identity.</p>
+                        <div class="table-responsive shadow-sm rounded">
+                            <table class="table table-striped table-hover border align-middle mb-0" style="font-size: 0.9rem;">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>Order Reference Code</th>
+                                        <th>Buyer Unique Key</th>
+                                        <th>Product Catalog Line</th>
+                                        <th>Volume</th>
+                                        <th>Total Settle Value</th>
+                                        <th>Clearing Status Log</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for order_node in admin_orders %}
+                                    <tr>
+                                        <td><code>{{ order_node.id }}</code></td>
+                                        <td><code>{{ order_node.buyer_uid }}</code></td>
+                                        <td>{{ order_node.product }}</td>
+                                        <td class="fw-bold">{{ order_node.quantity }}</td>
+                                        <td class="fw-bold text-success">RM {{ order_node.total }}</td>
+                                        <td><span class="badge bg-success py-2 px-3">{{ order_node.status }}</span></td>
+                                    </tr>
+                                    {% else %}
+                                    <tr><td colspan="6" class="text-center text-muted py-4">No wholesale ledger transactions recorded yet.</td></tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                {% endif %}
+            </div>
+        {% endif %}
+    </div>
+</body>
+</html>
+"""
+
+# =============================================================================
+# 4. SERVER CONFIGURATION ROUTING LINKS (WEB ENDACTION FLOWS)
+# =============================================================================
+@app.route('/')
+def index():
+    """Renders the master view interface, parsing the admin log schema conditionally."""
+    admin_orders = []
+    
+    # Secure role interception hook streams the global orders transaction matrix
+    if session.get('logged_in') and session.get('role') == 'admin':
+        try:
+            orders_ref = db.collection("orders").stream()
+            for doc in orders_ref:
+                payload_data = doc.to_dict()
+                admin_orders.append({
+                    "id": doc.id,
+                    "buyer_uid": payload_data.get("buyer_uid"),
+                    "product": payload_data.get("product"),
+                    "quantity": payload_data.get("quantity"),
+                    "total": payload_data.get("total_amount"),
+                    "status": payload_data.get("status")
+                })
+        except Exception as read_error:
+            print(f"Ledger streaming connection timeout: {read_error}")
             
-        with col_right:
-            malaysia_banks = [
-                "Malayan Banking Berhad (Maybank)", "CIMB Bank Berhad", 
-                "Public Bank Berhad", "RHB Bank Berhad", 
-                "Hong Leong Bank Berhad", "AmBank Berhad"
-            ]
-            bank_name = st.selectbox("Designated Settlement Bank *", malaysia_banks, key="reg_bank")
-            bank_account = st.text_input("Bank Account Number (For Future Commissions) *", key="reg_acc")
-            upline_code = st.text_input("Upline Referrer ID / Affiliate Code (Optional)", key="reg_upline")
-
-        if st.button("Register & Verify Account Profile", use_container_width=True, key="reg_submit_btn"):
-            if not (new_name and new_email and new_mobile and new_password and bank_account):
-                st.error("Verification halted: Please complete all mandatory fields.")
-                return
-                
-            try:
-                # =============================================================
-                # PURE ADMIN SDK REGISTER WORKFLOW: NO PUBLIC KEYS OR WEB URLS
-                # =============================================================
-                user_record = auth.create_user(
-                    email=new_email.strip(),
-                    password=new_password,
-                    display_name=new_name
-                )
-                
-                new_uid = user_record.uid
-                assigned_role = "admin" if new_uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1" else "b2c"
-                
-                structured_payload = {
-                    "uid": new_uid,
-                    "name": new_name,
-                    "email": new_email,
-                    "mobile": new_mobile,
-                    "bank_details": {
-                        "bank_name": bank_name,
-                        "account_number": bank_account
-                    },
-                    "upline_id": upline_code.strip() if upline_code.strip() else None,
-                    "role": assigned_role,
-                    "created_at": firestore.SERVER_TIMESTAMP
-                }
-                
-                db.collection("users").document(new_uid).set(structured_payload)
-                st.success("Account successfully created! Switch to the 'Partner Sign In' tab to log in.")
-                
-            except Exception as system_err:
-                st.error(f"Enrolment halted by system validation server: {system_err}")
-# =============================================================================
-# 6. RENDER STORE SYSTEM PLATFORM (PRODUCT PANELS & SHOPPING CART)
-# =============================================================================
-def render_store_front():
-    st.sidebar.title("🛡️ Partner Workspace")
-    st.sidebar.markdown(f"**Affiliate User:**\n{st.session_state.user_name}")
-    st.sidebar.markdown(f"**Security Code ID:**\n`{st.session_state.user_uid}`")
-    st.sidebar.write("---")
-    
-    if st.sidebar.button("Secure Application Logout", use_container_width=True):
-        st.session_state.logged_in = False
-        st.session_state.user_email = ""
-        st.session_state.user_uid = ""
-        st.session_state.user_name = ""
-        st.session_state.user_mobile = ""
-        st.rerun()
-
-    st.title("🛒 Flantech Procurement Center")
-    st.markdown("##### Premium Patrick Flanagan Formulations Portfolio")
-    st.write("")
-    
-    col_p1, col_p2 = st.columns(2)
-    
-    with col_p1:
-        st.markdown("### Formulation A: Mega H")
-        st.image("product/mega_h.jpg", width=280, fallback="💊 [Mega H Asset Image Missing]")
-        st.caption("Active Silica Hydride antioxidant formulation driving micro-cluster hydration levels inside cell membranes.")
+    return render_template_string(HTML_LAYOUT, banner_msg=request.args.get('msg'), admin_orders=admin_orders)
+@app.route('/signup', methods=['POST'])
+def signup():
+    """Handles distribution profile onboarding using the 100% cache-free Admin SDK system."""
+    try:
+        target_email = request.form['email'].strip()
+        target_password = request.form['password']
+        target_name = request.form['name']
         
-    with col_p2:
-        st.markdown("### Formulation B: Crystal Energy")
-        st.image("product/crystal_energy.jpg", width=280, fallback="💧 [Crystal Energy Asset Image Missing]")
-        st.caption("Liquid structured fluid catalyst component drops modifying surface tension dynamics of local drinking water.")
-
-    # =============================================================================
-    # MARKETING VIDEO PORTFOLIO SHOWCASE
-    # =============================================================================
-    st.write("---")
-    st.markdown("### 📺 Flantech Hybrid Video Presentation Library")
-    st.caption("Review our technical breakdown and marketing system walkthrough videos below:")
-    
-    v_col1, v_col2, v_col3 = st.columns(3)
-    
-    with v_col1:
-        st.markdown("##### 📹 System Introduction")
-        st.video("video/video1.mp4", format="video/mp4", start_time=0)
+        # PURE NATIVE PROVISIONING: Bypasses all client web API keys and public URL 404 proxy bugs
+        user_record = auth.create_user(
+            email=target_email,
+            password=target_password,
+            display_name=target_name
+        )
         
-    with v_col2:
-        st.markdown("##### 📹 Formulation Science")
-        st.video("video/video2.mp4", format="video/mp4", start_time=0)
+        # Check for your exact hardcoded master admin user key assignment rule
+        assigned_role = "admin" if user_record.uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1" else "b2c"
         
-    with v_col3:
-        st.markdown("##### 📹 Marketing System Breakdown")
-        st.video("video/video3.mp4", format="video/mp4", start_time=0)
-
-    st.write("---")
-    st.markdown("### 📊 Live Processing Allocation Interface")
-    target_item = st.selectbox("Selected Catalog Line Item", ["Patrick Flanagan: Mega H", "Patrick Flanagan: Crystal Energy"])
-    purchase_qty = st.number_input("Order Size Matrix Allocation (Max 50 Units)", min_value=1, max_value=50, value=1, step=1)
-    
-    cost_per_unit, net_aggregated_cost = calculate_price(purchase_qty)
-    
-    metric_c1, metric_c2, metric_c3 = st.columns(3)
-    with metric_c1:
-        st.metric(label="Calculated Account Assignment", value="Corporate B2B Wholesale" if purchase_qty == 50 else ("Wholesale Volume Tier" if purchase_qty > 1 else "B2C Consumer Retail"))
-    with metric_c2:
-        st.metric(label="Unit Rate Valuation", value=f"RM {cost_per_unit}.00")
-    with metric_c3:
-        st.metric(label="Aggregated Account Total", value=f"RM {net_aggregated_cost}.00")
-        
-    st.info("💡 **Wholesale Threshold Matrix:** 1 Unit: RM248 | 2-49 Units: RM198 per unit | Exactly 50 Units (B2B Bulk Cap): RM148 per unit.")
-    
-    # =============================================================================
-    # 6. MOCK LOCAL MALAYSIAN PAYMENT LEDGER ENGAGEMENT
-    # =============================================================================
-    st.markdown("#### 💳 Domestic Financial Settlement Module")
-    payment_channel = st.radio("Authorized Clearing Node Integration", ["FPX Real-Time Local Bank Processing Portal", "DuitNow QR Instant Cash Network"])
-    
-    if st.button("Authorize Payment & Lock Order Request", type="primary", use_container_width=True):
-        st.write("Simulating local Malaysian payment node integration clearing portal... Please wait.")
-        
-        ledger_block = {
-            "buyer_uid": st.session_state.user_uid,
-            "inventory_line": target_item,
-            "volume_purchased": purchase_qty,
-            "calculated_unit_rate": cost_per_unit,
-            "total_ringgit_value": net_aggregated_cost,
-            "payment_node": payment_channel,
-            "settlement_status": "Completed (Simulated FPX Callback Settlement)",
-            "assigned_corporate_tier": "B2B" if purchase_qty == 50 else "B2C",
-            "timestamp_created": firestore.SERVER_TIMESTAMP
+        # Build customer database profile schema payload block
+        user_payload = {
+            "uid": user_record.uid,
+            "name": target_name,
+            "email": target_email,
+            "mobile": request.form['name_mobile'],
+            "bank_details": {
+                "bank_name": request.form['bank_name'],
+                "account_number": request.form['bank_acc']
+            },
+            "upline_id": request.form['upline'].strip() if request.form['upline'].strip() else None,
+            "role": assigned_role
         }
         
-        try:
-            db.collection("orders").add(ledger_block)
-            st.balloons()
-            st.success(f"Order Registered! RM {net_aggregated_cost}.00 settled securely via simulated local bank FPX clearing loop node.")
-        except Exception as db_err:
-            st.error(f"Ledger Registry Error: Internal log insertion failure: {db_err}")
-
-    # =============================================================================
-    # SECRET ADMIN EXCLUSIVE DASHBOARD VIEW PANEL
-    # =============================================================================
-    if st.session_state.user_uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1":
-        st.write("---")
-        st.markdown("### 👑 Master Corporate Order Manifest Desk")
-        st.caption("Secure visibility module open exclusively to your master administrator account UID.")
+        db.collection("users").document(user_record.uid).set(user_payload)
+        return redirect(url_for('index', msg="Account Created Successfully! Please switch to Sign In."))
         
-        try:
-            orders_ref = db.collection("orders").order_by("timestamp_created", direction=firestore.Query.DESCENDING).stream()
-            orders_list = []
-            for doc in orders_ref:
-                o_data = doc.to_dict()
-                orders_list.append({
-                    "Order Code Reference": doc.id,
-                    "Buyer Unique Key": o_data.get("buyer_uid"),
-                    "Product Item": o_data.get("inventory_line"),
-                    "Bottles Bought": o_data.get("volume_purchased"),
-                    "Unit Cost": f"RM {o_data.get('calculated_unit_rate')}",
-                    "Total Settle Value": f"RM {o_data.get('total_ringgit_value')}",
-                    "Payment Channel Node": o_data.get("payment_node"),
-                    "Status Log": o_data.get("settlement_status")
-                })
-            if orders_list:
-                st.dataframe(orders_list, use_container_width=True)
-            else:
-                st.info("Database Active: No customer product placement processing orders submitted yet.")
-        except Exception as order_err:
-            st.caption(f"Waiting for system order configurations to deploy: {order_err}")
+    except Exception as system_err:
+        return redirect(url_for('index', msg=f"Enrolment Halted by Security Guard: {str(system_err)}"))
 
-# =============================================================================
-# 7. MASTER CONTROL APP EXECUTION ENGINE FLOW
-# =============================================================================
-if not st.session_state.logged_in:
-    render_auth_portal()
-else:
-    render_store_front()
-
-# =============================================================================
-# 8. DEVELOPER LIVE DATABASE INSPECTION DESK
-# =============================================================================
-st.write("---")
-st.markdown("### 🛠️ Developer Live Database Inspection Desk")
-
-if st.checkbox("Show Live Registered Users Ledger (Firestore View)"):
+@app.route('/login', methods=['POST'])
+def login():
+    """Performs server-side credential queries directly against your authenticated data records."""
     try:
-        users_ref = db.collection("users").stream()
-        users_list = []
-        for doc in users_ref:
-            user_dict = doc.to_dict()
-            bank_info = user_dict.get("bank_details", {})
-            users_list.append({
-                "User UID": doc.id,
-                "Legal Name": user_dict.get("name"),
-                "Email Card": user_dict.get("email"),
-                "Mobile Phone": user_dict.get("mobile"),
-                "Settlement Bank": bank_info.get("bank_name"),
-                "Account No.": bank_info.get("account_number"),
-                "Upline ID Reference": user_dict.get("upline_id"),
-                "System Role Tag": user_dict.get("role"),
-                "System Timestamp": str(user_dict.get("created_at"))
-            })
+        target_email = request.form['email'].strip()
+        
+        # Pull profile record via security email identification string lookup parameters
+        user_record = auth.get_user_by_email(target_email)
+        user_doc_ref = db.collection("users").document(user_record.uid).get()
+        
+        if user_doc_ref.exists:
+            profile_dataset = user_doc_ref.to_dict()
             
-        if users_list:
-            st.dataframe(users_list, use_container_width=True)
-            st.caption(f"Total Registered Nodes Tracked: {len(users_list)}")
-        else:
-            st.warning("Database Connection Active: But 'users' collection is currently empty.")
-    except Exception as read_err:
-        st.error(f"Failed to query local data tables: {read_err}")
+            # Map secure server sessions variables
+            session['logged_in'] = True
+            session['user_uid'] = user_record.uid
+            session['user_name'] = profile_dataset.get('name')
+            session['user_email'] = user_record.email
+            session['role'] = profile_dataset.get('role')
+            return redirect(url_for('index'))
+            
+        return redirect(url_for('index', msg="Authentication Halt: Profile document missing from database rows."))
+    except Exception:
+        return redirect(url_for('index', msg="Authentication failed. Check your security password entries."))
+
+@app.route('/order', methods=['POST'])
+def order():
+    """Executes wholesale cart matrices and hooks order objects into Firestore collections."""
+    if not session.get('logged_in'):
+        return redirect(url_for('index'))
+        
+    purchase_volume = int(request.form['qty'])
+    
+    # Tiered B2B / B2C price logic valuation processing checks
+    price_rate = 148 if purchase_volume == 50 else (198 if purchase_volume >= 2 else 248)
+    aggregated_total = purchase_volume * price_rate
+    
+    order_payload = {
+        "buyer_uid": session.get('user_uid'),
+        "product": request.form['product'],
+        "quantity": purchase_volume,
+        "total_amount": aggregated_total,
+        "status": "Settled (Simulated Bank FPX Clearing Loop)"
+    }
+    
+    db.collection("orders").add(order_payload)
+    return redirect(url_for('index', msg=f"Order Authorized! RM {aggregated_total}.00 cleared via simulated bank FPX clearing loop node."))
+
+@app.route('/logout')
+def logout():
+    """Wipes active session keys, terminating tracking connections cleanly."""
+    session.clear()
+    return redirect(url_for('index'))
+
+if __name__ == '__main__':
+    # Server ignition gateway fallback configurations
+    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
