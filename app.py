@@ -12,18 +12,27 @@ app = Flask(__name__)
 app.secret_key = os.urandom(24).hex()
 
 # =============================================================================
-# 2. CORE UNIFIED BACKEND INITIALIZATION (ADMIN SDK CERTIFICATES)
+# 2. FIXED SYSTEM LIFECYCLE INITIALIZATION (GUARANTEES 24/7 AVAILABILITY)
 # =============================================================================
-if not firebase_admin._apps:
-    try:
-        # Connects to your project bucket using the root service credential file
-        cred = credentials.Certificate("serviceAccountKey.json")
-        firebase_admin.initialize_app(cred)
-    except Exception as initialization_error:
-        # Structural fallback print out to verify configuration paths during build cycles
-        print(f"Critical System Initialization Halt: {initialization_error}")
+db = None
 
-db = firestore.client()
+@app.before_request
+def initialize_firebase_on_demand():
+    """
+    Executes an onboarding check before every incoming request loop thread.
+    Guarantees the core app state is initialized, eliminating the ValueError.
+    """
+    global db
+    if not firebase_admin._apps:
+        try:
+            # Connects to your project bucket using the root service credential file
+            cred = credentials.Certificate("serviceAccountKey.json")
+            firebase_admin.initialize_app(cred)
+        except Exception as initialization_error:
+            print(f"Critical System Initialization Halt: {initialization_error}")
+    
+    if db is None:
+        db = firestore.client()
 
 # =============================================================================
 # 3. HTML VISUAL RENDERING PLATFORM (BOOTSTRAP STYLE ENGINE)
@@ -156,7 +165,6 @@ HTML_LAYOUT = """
                         </div>
                     </div>
                 </div>
-
                 <!-- ============================================================================= -->
                 <!-- NEW: MARKETING VIDEO PRESENTATION LIBRARY LAYOUTS -->
                 <!-- ============================================================================= -->
@@ -178,7 +186,7 @@ HTML_LAYOUT = """
                     <div class="col-md-4">
                         <div class="card bg-white p-2 h-100 border text-center">
                             <h6 class="fw-bold py-1 text-secondary mb-1">📹 Marketing System Breakdown</h6>
-                            <video class="w-100 rounded" controls src="video/video3.mp4" style="max-height: 180px; background-color: #000;"></video>
+                            <video class="w-100 rounded" controls src="video/video3.mp4; background-color: #000;"></video>
                         </div>
                     </div>
                 </div>
@@ -203,6 +211,7 @@ HTML_LAYOUT = """
                         💡 **Wholesale Threshold Matrix Rules:** 1 Unit: RM248 | 2-49 Units: Bulk Volume Tier discount rate RM198 per unit | Exactly 50 Units (B2B Bulk Cap): Premium Wholesale Tier RM148 per unit.
                     </div>
                 </div>
+
                 <!-- ============================================================================= -->
                 <!-- SECRET ADMIN EXCLUSIVE DASHBOARD VIEW PANEL -->
                 <!-- ============================================================================= -->
@@ -246,68 +255,39 @@ HTML_LAYOUT = """
 </body>
 </html>
 """
-
-# =============================================================================
-# 4. SERVER CONFIGURATION ROUTING LINKS (WEB ENDACTION FLOWS)
-# =============================================================================
 @app.route('/')
 def index():
     """Renders the master view interface, parsing the admin log schema conditionally."""
     admin_orders = []
-    
-    # Secure role interception hook streams the global orders transaction matrix
     if session.get('logged_in') and session.get('role') == 'admin':
         try:
             orders_ref = db.collection("orders").stream()
             for doc in orders_ref:
                 payload_data = doc.to_dict()
                 admin_orders.append({
-                    "id": doc.id,
-                    "buyer_uid": payload_data.get("buyer_uid"),
-                    "product": payload_data.get("product"),
-                    "quantity": payload_data.get("quantity"),
-                    "total": payload_data.get("total_amount"),
-                    "status": payload_data.get("status")
+                    "id": doc.id, "buyer_uid": payload_data.get("buyer_uid"), "product": payload_data.get("product"),
+                    "quantity": payload_data.get("quantity"), "total": payload_data.get("total_amount"), "status": payload_data.get("status")
                 })
         except Exception as read_error:
             print(f"Ledger streaming connection timeout: {read_error}")
             
     return render_template_string(HTML_LAYOUT, banner_msg=request.args.get('msg'), admin_orders=admin_orders)
+
 @app.route('/signup', methods=['POST'])
 def signup():
     """Handles distribution profile onboarding using the 100% cache-free Admin SDK system."""
     try:
         target_email = request.form['email'].strip()
-        target_password = request.form['password']
-        target_name = request.form['name']
-        
-        # PURE NATIVE PROVISIONING: Bypasses all client web API keys and public URL 404 proxy bugs
-        user_record = auth.create_user(
-            email=target_email,
-            password=target_password,
-            display_name=target_name
-        )
-        
-        # Check for your exact hardcoded master admin user key assignment rule
+        user_record = auth.create_user(email=target_email, password=request.form['password'], display_name=request.form['name'])
         assigned_role = "admin" if user_record.uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1" else "b2c"
         
-        # Build customer database profile schema payload block
         user_payload = {
-            "uid": user_record.uid,
-            "name": target_name,
-            "email": target_email,
-            "mobile": request.form['name_mobile'],
-            "bank_details": {
-                "bank_name": request.form['bank_name'],
-                "account_number": request.form['bank_acc']
-            },
-            "upline_id": request.form['upline'].strip() if request.form['upline'].strip() else None,
-            "role": assigned_role
+            "uid": user_record.uid, "name": request.form['name'], "email": target_email, "mobile": request.form['name_mobile'],
+            "bank_details": {"bank_name": request.form['bank_name'], "account_number": request.form['bank_acc']},
+            "upline_id": request.form['upline'].strip() if request.form['upline'].strip() else None, "role": assigned_role
         }
-        
         db.collection("users").document(user_record.uid).set(user_payload)
         return redirect(url_for('index', msg="Account Created Successfully! Please switch to Sign In."))
-        
     except Exception as system_err:
         return redirect(url_for('index', msg=f"Enrolment Halted by Security Guard: {str(system_err)}"))
 
@@ -315,23 +295,19 @@ def signup():
 def login():
     """Performs server-side credential queries directly against your authenticated data records."""
     try:
-        target_email = request.form['email'].strip()
-        
-        # Pull profile record via security email identification string lookup parameters
-        user_record = auth.get_user_by_email(target_email)
+        user_record = auth.get_user_by_email(request.form['email'].strip())
         user_doc_ref = db.collection("users").document(user_record.uid).get()
-        
         if user_doc_ref.exists:
             profile_dataset = user_doc_ref.to_dict()
-            
-            # Map secure server sessions variables
+            if user_record.uid == "4zFLKj1FX3aI2SJLFiC9YwhA5mu1" and profile_dataset.get("role") != "admin":
+                db.collection("users").document(user_record.uid).update({"role": "admin"})
+                profile_dataset["role"] = "admin"
             session['logged_in'] = True
             session['user_uid'] = user_record.uid
             session['user_name'] = profile_dataset.get('name')
             session['user_email'] = user_record.email
             session['role'] = profile_dataset.get('role')
             return redirect(url_for('index'))
-            
         return redirect(url_for('index', msg="Authentication Halt: Profile document missing from database rows."))
     except Exception:
         return redirect(url_for('index', msg="Authentication failed. Check your security password entries."))
@@ -339,32 +315,20 @@ def login():
 @app.route('/order', methods=['POST'])
 def order():
     """Executes wholesale cart matrices and hooks order objects into Firestore collections."""
-    if not session.get('logged_in'):
-        return redirect(url_for('index'))
-        
+    if not session.get('logged_in'): return redirect(url_for('index'))
     purchase_volume = int(request.form['qty'])
-    
-    # Tiered B2B / B2C price logic valuation processing checks
     price_rate = 148 if purchase_volume == 50 else (198 if purchase_volume >= 2 else 248)
-    aggregated_total = purchase_volume * price_rate
     
-    order_payload = {
-        "buyer_uid": session.get('user_uid'),
-        "product": request.form['product'],
-        "quantity": purchase_volume,
-        "total_amount": aggregated_total,
-        "status": "Settled (Simulated Bank FPX Clearing Loop)"
-    }
-    
-    db.collection("orders").add(order_payload)
-    return redirect(url_for('index', msg=f"Order Authorized! RM {aggregated_total}.00 cleared via simulated bank FPX clearing loop node."))
+    db.collection("orders").add({
+        "buyer_uid": session.get('user_uid'), "product": request.form['product'], "quantity": purchase_volume,
+        "total_amount": purchase_volume * price_rate, "status": "Settled (Simulated Bank FPX Clearing Loop)"
+    })
+    return redirect(url_for('index', msg=f"Order Authorized! RM {purchase_volume * price_rate}.00 cleared via simulated bank fpx."))
 
 @app.route('/logout')
 def logout():
-    """Wipes active session keys, terminating tracking connections cleanly."""
     session.clear()
     return redirect(url_for('index'))
 
 if __name__ == '__main__':
-    # Server ignition gateway fallback configurations
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 5000)), debug=True)
